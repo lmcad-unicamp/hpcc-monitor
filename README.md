@@ -15,11 +15,11 @@ You can use cron to execute Audit and Control Systems periodically
 Write:
 
 	SHELL=/bin/bash
-        PATH=/sbin:/bin:/usr/sbin:/usr/bin
-        MAILTO=root
-        HOME=/
-        */2 * * * * python /home/ubuntu/monitoring-system/audit-system.py
-        */2 * * * * python /home/ubuntu/monitoring-system/control-system.py
+	PATH=/sbin:/bin:/usr/sbin:/usr/bin
+	MAILTO=root
+	HOME=/
+	* * * * * python /home/ubuntu/monitoring-system/audit-system.py
+	* * * * * python /home/ubuntu/monitoring-system/control-system.py
 
 Then:
 
