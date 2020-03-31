@@ -1,11 +1,21 @@
+import logging
 import zapi as z
 from libcloud.compute.types import Provider
 from libcloud.compute.providers import get_driver
-from pprint import pprint
+from datetime import datetime,timedelta
 
-IPSERVER= (open("/home/william/Zabbix/private/ip-server", "r")).read()[:-1]
-ZABBIX_USER= (open("/home/william/Zabbix/private/zabbix_user", "r")).read()[:-1]
-ZABBIX_PASSWORD= (open("/home/william/Zabbix/private/zabbix_password", "r")).read()[:-1]
+logger = logging.getLogger(__name__)
+fh = logging.FileHandler("log/control.log")
+ch = logging.StreamHandler()
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+fh.setFormatter(formatter)
+ch.setFormatter(formatter)
+logger.addHandler(fh)
+logger.addHandler(ch)
+
+IPSERVER= (open("private/ip_server", "r")).read()[:-1]
+ZABBIX_USER= (open("private/zabbix_user", "r")).read()[:-1]
+ZABBIX_PASSWORD= (open("private/zabbix_password", "r")).read()[:-1]
 ACCESS_ID = (open("/home/william/.clap/private/access-key", "r")).read()[:-1]
 SECRET_KEY = (open("/home/william/.clap/private/secret-access-key", "r")).read()[:-1]
 
@@ -13,15 +23,20 @@ cls = get_driver(Provider.EC2)
 drivers = []
 drivers.append(cls(ACCESS_ID, SECRET_KEY, region="us-east-2"))
 
+time = timedelta(minutes=2)
+now = datetime.utcnow()
+
 hostsFromProvider = []
 for driver in drivers:
     for node in driver.list_nodes():
         #TIRAR ISSO
         if node.extra['tags']['owner'] == 'william':
-            if 'zabbixignore' in node.extra['tags'] and node.extra['tags']['zabbixignore'] == 'true':
-                continue
-            if node.extra['status'] != 'terminated':
-                hostsFromProvider.append({'id':node.id, 'owner':node.extra['tags']['owner']})
+            launchtime = datetime.strptime(node.extra['launch_time'],'%Y-%m-%dT%H:%M:%S.%fZ')
+            if now - launchtime > time:
+                if 'zabbixignore' in node.extra['tags'] and node.extra['tags']['zabbixignore'] == 'true':
+                    continue
+                if node.extra['status'] != 'terminated':
+                    hostsFromProvider.append({'id':node.id, 'owner':node.extra['tags']['owner']})
 
 ##DETECT TERMINATED INSTACES AND DISABLE HOSTS
 hostsFromZabbix = z.zapi.host.get(output = ['name'], filter={'status':'0'})

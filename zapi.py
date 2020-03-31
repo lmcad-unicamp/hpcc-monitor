@@ -1,8 +1,8 @@
+import logging
 import pyzabbix
-from awsapi import getpricing
-from awsapi import gettype
-from awsapi import getfamily
-from pprint import pprint
+from awsapi import getpricing,gettype,getfamily
+
+logger = logging.getLogger(__name__)
 
 class NotFoudException(Exception):
     pass
@@ -66,11 +66,11 @@ def getAdminsEmail():
                     if media['sendto']:
                         emails.append(media['sendto'][0])
                     else:
-                        print("[ZAPI] USER DOES NOT HAVE AN EMAIL: " + str(username))
+                        logger.debug("[ZAPI] USER DOES NOT HAVE AN EMAIL: " + str(username))
             if not flag:
-                print("[ZAPI] USER DOES NOT HAVE AN EMAIL: " + str(username))
+                logger.debug("[ZAPI] USER DOES NOT HAVE AN EMAIL: " + str(username))
         else:
-            print("[ZAPI] USER DOES NOT HAVE MEDIA: " + str(username))
+            logger.debug("[ZAPI] USER DOES NOT HAVE MEDIA: " + str(username))
     if not emails:
         raise NotFoudException("[ZAPI] ADMINS DO NOT HAVE EMAILS")
     return emails
@@ -104,12 +104,12 @@ def host_disable(hostname=None, hostid=None):
         elif hostid:
             hostname = getHostname(hostid)
         else:
-            print("[ZAPI] I NEED A HOST ID OR NAME")
+            logger.error("[ZAPI] I NEED A HOST ID OR NAME")
             return
         zapi.host.update(hostid=hostid, status="1")
-        print("[DISABLE] HOST "+str(hostname)+" HAS BEEN TERMINATED AND WAS DISABLED")
+        logger.info("[DISABLE] HOST "+str(hostname)+" HAS BEEN TERMINATED AND WAS DISABLED")
     except (pyzabbix.ZabbixAPIException,NotFoudException) as e:
-        print(e)
+        logger.error(e)
 
 ##ASSOCIA OS HOSTS AO USUARIO
 def host_user_association(user=None, hostname=None, hostid=None):
@@ -119,24 +119,24 @@ def host_user_association(user=None, hostname=None, hostid=None):
         elif hostid:
             hostname = getHostname(hostid)
         else:
-            print("[ZAPI] I NEED A HOST ID OR NAME")
+            logger.error("[ZAPI] I NEED A HOST ID OR NAME")
             return
         if not user:
-            print("[ZAPI] I NEED A USER")
+            logger.error("[ZAPI] I NEED A USER")
             return
 
         groupOfUser = getHostGroupID(str(user)+"-hosts")
         groupsFromHost = zapi.hostgroup.get(hostids=hostid, output=["groupsid"])
     except NotFoudException as e:
-        print(e)
+        logger.error(e)
     else:
         if groupOfUser not in [x['groupid'] for x in groupsFromHost]:
             groupsFromHost.append({"groupid": str(groupOfUser)})
             try:
                 zapi.host.update(hostid=hostid, groups=groupsFromHost)
-                print("[ASSOCIATE] HOST "+str(hostname)+" IS NOW ASSOCIATE WITH USER "+str(user))
+                logger.info("[ASSOCIATE] HOST "+str(hostname)+" IS NOW ASSOCIATE WITH USER "+str(user))
             except (pyzabbix.ZabbixAPIException,NotFoudException) as e:
-                print(e)
+                logger.error(e)
 
 ##ARRUMAR O PRECO DA INSTANCIA
 def host_update_price(hostname=None, hostid=None):
@@ -147,7 +147,7 @@ def host_update_price(hostname=None, hostid=None):
         macrosFromHost = zapi.host.get(hostids=hostid, selectMacros="extend", output=["macros"])
         hostname = getHostname(hostid)
     else:
-        print("[ZAPI] I NEED A HOST ID OR NAME")
+        logger.error("[ZAPI] I NEED A HOST ID OR NAME")
 
     hostprice = getpricing(hostname)
     macros = []
@@ -161,19 +161,19 @@ def host_update_price(hostname=None, hostid=None):
             if float(value) != float(hostprice):
                 flagprice = False
                 macro['value'] = hostprice
-                print("[PRICING] PRICE OF "+str(hostname)+" UPDATED FROM "+str(value)+" TO "+str(hostprice))
+                logger.info("[PRICING] PRICE OF "+str(hostname)+" UPDATED FROM "+str(value)+" TO "+str(hostprice))
         macros.append(macro)
 
     if not flag:
         macro = {'macro':'{$PRICE}', 'value':str(hostprice)}
         macros.append(macro)
-        print("[PRICING] PRICE OF "+str(hostname)+" ADDED COSTING "+str(hostprice))
+        logger.info("[PRICING] PRICE OF "+str(hostname)+" ADDED COSTING "+str(hostprice))
 
     if not flagprice:
         try:
             zapi.host.update(hostid=getHostID(hostname), macros=macros)
         except NotFoudException as e:
-            print(e)
+            logger.error(e)
 
 ##ARRUMAR O TIPO DA INSTANCIA
 def host_update_type(hostname=None, hostid=None):
@@ -184,7 +184,7 @@ def host_update_type(hostname=None, hostid=None):
         macrosFromHost = zapi.host.get(hostids=hostid, selectMacros="extend", output=["macros"])
         hostname = getHostname(hostid)
     else:
-        print("[ZAPI] I NEED A HOST ID OR NAME")
+        logger.error("[ZAPI] I NEED A HOST ID OR NAME")
 
     hosttype = gettype(hostname)
     hostfamily = getfamily(hosttype)
@@ -201,19 +201,19 @@ def host_update_type(hostname=None, hostid=None):
             if str(lastvalue) != str(hosttype):
                 flagtype = False
                 macro['value'] = hosttype
-                print("[TYPE] TYPE OF "+str(hostname)+" CHANGED FROM "+str(lastvalue)+" TO "+str(hosttype))
+                logger.info("[TYPE] TYPE OF "+str(hostname)+" CHANGED FROM "+str(lastvalue)+" TO "+str(hosttype))
         macros.append(macro)
 
     if not flag:
         macro = {'macro':'{$TYPE}', 'value':str(hosttype)}
         macros.append(macro)
-        print("[TYPE] TYPE OF "+str(hostname)+" ADDED "+str(hosttype))
+        logger.info("[TYPE] TYPE OF "+str(hostname)+" ADDED "+str(hosttype))
 
     if not flagtype:
         try:
             zapi.host.update(hostid=getHostID(hostname), macros=macros)
         except NotFoudException as e:
-            print(e)
+            logger.error(e)
 
     if lastvalue and not flagtype:
         lastfamily = getfamily(lastvalue)
@@ -227,6 +227,6 @@ def host_update_type(hostname=None, hostid=None):
                 templatesFromHost.remove({"templateid": str(templateOfLastFamily)})
                 templatesFromHost.append({"templateid": str(templateOfFamily)})
                 zapi.host.update(hostid=hostid, templates=templatesFromHost)
-                print("[TYPE] HOST "+str(hostname)+" IS NOW ASSOCIATE WITH TEMPLATE "+str(hostfamily))
+                logger.info("[TYPE] HOST "+str(hostname)+" IS NOW ASSOCIATE WITH TEMPLATE "+str(hostfamily))
             except (pyzabbix.ZabbixAPIException,NotFoudException) as e:
-                print(e)
+                logger.error(e)
