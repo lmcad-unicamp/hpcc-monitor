@@ -6,7 +6,7 @@ while masterkeep:
     while keep:
         email_user = raw_input('\t\tEnter the server email: ')
         keep = False
-        right = raw_input('\t\tIs this email right? '+str(email_user)+' (N)o or any other charactere: ')
+        right = raw_input('\t\t\tIs this email right? '+str(email_user)+' (N)o or any other charactere: ')
         if right == 'N':
             keep = True
 
@@ -14,7 +14,7 @@ while masterkeep:
     while keep:
         email_password = raw_input('\t\tEnter the server email password: ')
         keep = False
-        right = raw_input('\t\tIs this password right? '+str(email_password)+' (N)o or any other charactere: ')
+        right = raw_input('\t\t\tIs this password right? '+str(email_password)+' (N)o or any other charactere: ')
         if right == 'N':
             keep = True
 
@@ -22,7 +22,7 @@ while masterkeep:
     while keep:
         ip_server = raw_input('\t\tEnter the IP server: ')
         keep = False
-        right = raw_input('\t\tIs this IP server right? '+str(ip_server)+' (N)o or any other charactere: ')
+        right = raw_input('\t\t\tIs this IP server right? '+str(ip_server)+' (N)o or any other charactere: ')
         if right == 'N':
             keep = True
 
@@ -30,7 +30,7 @@ while masterkeep:
     while keep:
         zabbix_user = raw_input('\t\tEnter the Zabbix server user: ')
         keep = False
-        right = raw_input('\t\tIs this Zabbix server user right? '+str(zabbix_user)+' (N)o or any other charactere: ')
+        right = raw_input('\t\t\tIs this Zabbix server user right? '+str(zabbix_user)+' (N)o or any other charactere: ')
         if right == 'N':
             keep = True
 
@@ -39,7 +39,7 @@ while masterkeep:
     while keep:
         zabbix_password = raw_input('\t\tEnter the Zabbix server password: ')
         keep = False
-        right = raw_input('\t\tIs this Zabbix server password right? '+str(zabbix_password)+' (N)o or any other charactere: ')
+        right = raw_input('\t\t\tIs this Zabbix server password right? '+str(zabbix_password)+' (N)o or any other charactere: ')
         if right == 'N':
             keep = True
 
@@ -53,17 +53,26 @@ while masterkeep:
     right = raw_input('\t\tIs everything right? (N)o or any other charactere: ')
     if right == 'N':
         masterkeep = True
-
-os.mkdir('log')
-print('\t'+str("Directory /log created"))
-
-os.mkdir('private')
-print('\t'+str("Directory /private created"))
-(open('private/email_user','w')).write(email_user)
-(open('private/email_password','w')).write(email_password)
-(open('private/ip_server','w')).write(ip_server)
-(open('private/zabbix_user','w')).write(zabbix_user)
-(open('private/zabbix_password','w')).write(zabbix_password)
+try:
+    os.mkdir('log')
+    print('\t'+str("Directory /log created"))
+except:
+    pass
+try:
+    os.mkdir('files')
+    print('\t'+str("Directory /files created"))
+except:
+    pass
+try:
+    os.mkdir('private')
+    print('\t'+str("Directory /private created"))
+except:
+    pass
+(open('private/email_user','w')).write(email_user+'\n')
+(open('private/email_password','w')).write(email_password+'\n')
+(open('private/ip_server','w')).write(ip_server+'\n')
+(open('private/zabbix_user','w')).write(zabbix_user+'\n')
+(open('private/zabbix_password','w')).write(zabbix_password+'\n')
 
 print('\t'+str("Done!"))
 print('\t'+str("Now, insert your provider credentials"))
@@ -76,7 +85,7 @@ while keepmaster:
         while keep:
             aws_access_key = raw_input('\t\tEnter the AWS Access Key: ')
             keep = False
-            right = raw_input('\t\tIs this AWS Access Key right? '+str(aws_access_key)+' (N)o or any other charactere: ')
+            right = raw_input('\t\t\tIs this AWS Access Key right? '+str(aws_access_key)+' (N)o or any other charactere: ')
             if right == 'N':
                 keep = True
 
@@ -84,14 +93,14 @@ while keepmaster:
         while keep:
             aws_secret_access_key = raw_input('\t\tEnter the AWS Secret Access Key: ')
             keep = False
-            right = raw_input('\t\tIs this AWS Secret Access Key right? '+str(aws_secret_access_key)+' (N)o or any other charactere: ')
+            right = raw_input('\t\t\tIs this AWS Secret Access Key right? '+str(aws_secret_access_key)+' (N)o or any other charactere: ')
             if right == 'N':
                 keep = True
 
         print
         print('\t'+str("Done!"))
-        (open('private/aws_access_key','w')).write(aws_access_key)
-        (open('private/aws_secret_access_key','w')).write(aws_secret_access_key)
+        (open('private/aws_access_key','w')).write(aws_access_key+'\n')
+        (open('private/aws_secret_access_key','w')).write(aws_secret_access_key+'\n')
     elif provider == 'M':
         print('\t'+str("Not developed yet"))
 

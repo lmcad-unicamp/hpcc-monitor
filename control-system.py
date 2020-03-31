@@ -16,8 +16,8 @@ logger.addHandler(ch)
 IPSERVER= (open("private/ip_server", "r")).read()[:-1]
 ZABBIX_USER= (open("private/zabbix_user", "r")).read()[:-1]
 ZABBIX_PASSWORD= (open("private/zabbix_password", "r")).read()[:-1]
-ACCESS_ID = (open("/home/william/.clap/private/access-key", "r")).read()[:-1]
-SECRET_KEY = (open("/home/william/.clap/private/secret-access-key", "r")).read()[:-1]
+ACCESS_ID = (open("private/aws_access_key", "r")).read()[:-1]
+SECRET_KEY = (open("private/aws_secret_access_key", "r")).read()[:-1]
 
 cls = get_driver(Provider.EC2)
 drivers = []
