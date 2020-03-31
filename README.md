@@ -14,7 +14,7 @@ You can use cron to execute Audit and Control Systems periodically
 
 Write:
 
-		SHELL=/bin/bash
+	SHELL=/bin/bash
         PATH=/sbin:/bin:/usr/sbin:/usr/bin
         MAILTO=root
         HOME=/
