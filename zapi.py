@@ -4,6 +4,7 @@ import pyzabbix
 from awsapi import getpricing,gettype,getfamily
 
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 class NotFoudException(Exception):
     pass

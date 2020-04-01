@@ -23,4 +23,8 @@ Write:
 
 Then:
 
-    sudo systemctl restart cron.service
+  sudo systemctl restart cron.service
+
+To get log of cron:
+
+	grep CRON /var/log/syslog

@@ -8,6 +8,7 @@ from libcloud.compute.providers import get_driver
 from datetime import datetime,timedelta
 
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 fh = logging.FileHandler(os.environ['HOME']+"/monitoring-system/log/audit.log")
 ch = logging.StreamHandler()
 formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
