@@ -6,7 +6,7 @@ import inspect
 
 home = os.path.dirname(os.path.realpath(__file__))
 logger = logging.getLogger(inspect.getouterframes(inspect.currentframe(), 2)[1][1])
-#logger.setLevel(logging.INFO)
+print(inspect.getouterframes(inspect.currentframe(), 2)[1][1])
 
 class NotFoudException(Exception):
     pass

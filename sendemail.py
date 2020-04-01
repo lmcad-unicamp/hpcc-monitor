@@ -19,3 +19,4 @@ def alert_email(emails, host):
     msg['To'] = ", ".join(emails)
     s.sendmail(EMAIL_USER, emails, msg.as_string())
     s.close()
+
