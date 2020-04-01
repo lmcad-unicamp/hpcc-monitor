@@ -2,9 +2,11 @@ import logging
 import os
 import pyzabbix
 from awsapi import getpricing,gettype,getfamily
-home=os.path.dirname(os.path.realpath(__file__))
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
+import inspect
+
+home = os.path.dirname(os.path.realpath(__file__))
+logger = logging.getLogger(inspect.getouterframes(inspect.currentframe(), 2)[1][1])
+#logger.setLevel(logging.INFO)
 
 class NotFoudException(Exception):
     pass

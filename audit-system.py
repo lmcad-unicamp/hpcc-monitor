@@ -7,16 +7,18 @@ from libcloud.compute.types import Provider
 from libcloud.compute.providers import get_driver
 from datetime import datetime,timedelta
 
-home=os.path.dirname(os.path.realpath(__file__))
-logger = logging.getLogger(__name__)
+home = os.path.dirname(os.path.realpath(__file__))
+
+logger = logging.getLogger(os.path.basename(__file__))
 logger.setLevel(logging.INFO)
 fh = logging.FileHandler(home+"/log/audit.log")
 ch = logging.StreamHandler()
-formatter = logging.Formatter('[%(asctime)s] - [%(name)s] - [%(levelname)5s] - %(message)s')
+formatter = logging.Formatter('[%(asctime)s] - [%(filename)s] - [%(levelname)5s] - %(message)s')
 fh.setFormatter(formatter)
 ch.setFormatter(formatter)
 logger.addHandler(fh)
 logger.addHandler(ch)
+logger = logging.LoggerAdapter(logger, {'filename': os.path.basename(__file__)})
 
 ACCESS_ID = (open(home+"/private/aws_access_key", "r")).read()[:-1]
 SECRET_KEY = (open(home+"/private/aws_secret_access_key", "r")).read()[:-1]

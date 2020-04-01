@@ -12,14 +12,10 @@ You can use cron to execute Audit and Control Systems periodically
 
 	crontab -e
 
-Write:
+Write (with the right paths):
 
-	SHELL=/bin/bash
-	PATH=/sbin:/bin:/usr/sbin:/usr/bin
-	MAILTO=root
-	HOME=/
-	* * * * * python /home/ubuntu/monitoring-system/audit-system.py
-	* * * * * python /home/ubuntu/monitoring-system/control-system.py
+	* * * * * /usr/bin/python /home/ubuntu/monitoring-system/audit-system.py >> /home/ubuntu/audit-out.txt
+	* * * * * /usr/bin/python /home/ubuntu/monitoring-system/control-system.py >> /home/ubuntu/control-out.txt
 
 Then:
 
