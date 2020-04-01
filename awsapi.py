@@ -6,6 +6,7 @@ import boto3 as boto
 from pprint import pprint
 from datetime import datetime
 
+home=os.path.dirname(os.path.realpath(__file__))
 regions = {'us-east-2': "US East (Ohio)", 'us-east-1': "US East (N. Virginia)",
            'us-west-1': "US West (N. California)", 'us-west-2': "US West (Oregon)",
            'ap-east-1': "Asia Pacific (Hong Kong)", 'ap-south-1': "Asia Pacific (Mumbai)",
@@ -96,8 +97,8 @@ def printPrices(price):
                     + product["terms"]["Reserved"].values()[i]["priceDimensions"].values()[j]["unit"])
 
 def getpricing(instance_id, ondemand=True, verbose=False):
-    ACCESS_ID = (open(os.environ['HOME']+"/monitoring-system/private/aws_access_key", "r")).read()[:-1]
-    SECRET_KEY = (open(os.environ['HOME']+"/monitoring-system/private/aws_secret_access_key", "r")).read()[:-1]
+    ACCESS_ID = (open(home+"/private/aws_access_key", "r")).read()[:-1]
+    SECRET_KEY = (open(home+"/private/aws_secret_access_key", "r")).read()[:-1]
 
     client = boto.client('ec2', region_name='us-east-2', aws_access_key_id=ACCESS_ID, aws_secret_access_key=SECRET_KEY)
     ec2 = boto.resource('ec2', region_name='us-east-2', aws_access_key_id=ACCESS_ID, aws_secret_access_key=SECRET_KEY)
@@ -178,8 +179,8 @@ def getpricing(instance_id, ondemand=True, verbose=False):
     return instance_price
 
 def gettype(instance_id, ondemand=True, verbose=False):
-    ACCESS_ID = (open(os.environ['HOME']+"/monitoring-system/private/aws_access_key", "r")).read()[:-1]
-    SECRET_KEY = (open(os.environ['HOME']+"/monitoring-system/private/aws_secret_access_key", "r")).read()[:-1]
+    ACCESS_ID = (open(home+"/private/aws_access_key", "r")).read()[:-1]
+    SECRET_KEY = (open(home+"/private/aws_secret_access_key", "r")).read()[:-1]
 
     client = boto.client('ec2', region_name='us-east-2', aws_access_key_id=ACCESS_ID, aws_secret_access_key=SECRET_KEY)
 

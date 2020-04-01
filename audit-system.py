@@ -7,19 +7,20 @@ from libcloud.compute.types import Provider
 from libcloud.compute.providers import get_driver
 from datetime import datetime,timedelta
 
+home=os.path.dirname(os.path.realpath(__file__))
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
-fh = logging.FileHandler(os.environ['HOME']+"/monitoring-system/log/audit.log")
+fh = logging.FileHandler(home+"/log/audit.log")
 ch = logging.StreamHandler()
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+formatter = logging.Formatter('[%(asctime)s] - [%(name)s] - [%(levelname)5s] - %(message)s')
 fh.setFormatter(formatter)
 ch.setFormatter(formatter)
 logger.addHandler(fh)
 logger.addHandler(ch)
 
-ACCESS_ID = (open(os.environ['HOME']+"/monitoring-system/private/aws_access_key", "r")).read()[:-1]
-SECRET_KEY = (open(os.environ['HOME']+"/monitoring-system/private/aws_secret_access_key", "r")).read()[:-1]
-STOPPED_INSTANCES_FILE = os.environ['HOME']+"/monitoring-system/files/stopped-instances.hosts"
+ACCESS_ID = (open(home+"/private/aws_access_key", "r")).read()[:-1]
+SECRET_KEY = (open(home+"/private/aws_secret_access_key", "r")).read()[:-1]
+STOPPED_INSTANCES_FILE = home+"/files/stopped-instances.hosts"
 
 cls = get_driver(Provider.EC2)
 drivers = []
@@ -38,7 +39,7 @@ for driver in drivers:
         if node.extra['tags']['owner'] == 'william':
             launchtime = datetime.strptime(node.extra['launch_time'],'%Y-%m-%dT%H:%M:%S.%fZ')
             if now - launchtime > time:
-                if 'zabbixignore' in node.extra['tags'] and node.extra['tags']['zabbixignore'] == 'true':
+                if 'zabbixignore' in node.extra['tags'] and node.extra['tags']['zabbixignore'] in ['true', 'True']:
                     continue
                 if node.extra['status'] != 'terminated':
                     hostsFromProvider.append({'id':node.id, 'owner':node.extra['tags']['owner']})

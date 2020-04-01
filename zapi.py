@@ -2,7 +2,7 @@ import logging
 import os
 import pyzabbix
 from awsapi import getpricing,gettype,getfamily
-
+home=os.path.dirname(os.path.realpath(__file__))
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
@@ -89,9 +89,10 @@ def getHostGroupID(hostgroupname):
             return str(hostgroup['groupid'])
     raise NotFoudException("[ZAPI] HOST GROUP DOES NOT EXIST: " + str(hostgroupname))
 
-IPSERVER= (open(os.environ['HOME']+"/monitoring-system/private/ip_server", "r")).read()[:-1]
-ZABBIX_USER= (open(os.environ['HOME']+"/monitoring-system/private/zabbix_user", "r")).read()[:-1]
-ZABBIX_PASSWORD= (open(os.environ['HOME']+"/monitoring-system/private/zabbix_password", "r")).read()[:-1]
+IPSERVER= (open(home+"/private/ip_server", "r")).read()[:-1]
+ZABBIX_USER= (open(home+"/private/zabbix_user", "r")).read()[:-1]
+ZABBIX_PASSWORD= (open(home+"/private/zabbix_password", "r")).read()[:-1]
+
 
 
 zapi = pyzabbix.ZabbixAPI("http://"+str(IPSERVER)+"/zabbix/api_jsonrpc.php")
