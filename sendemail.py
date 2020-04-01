@@ -1,8 +1,9 @@
 import smtplib
+import os
 from email.mime.text import MIMEText
 
-EMAIL_USER= (open("private/email_user", "r")).read()[:-1]
-EMAIL_PASSWORD= (open("private/email_password", "r")).read()[:-1]
+EMAIL_USER= (open(os.environ['HOME']+"/monitoring-system/private/email_user", "r")).read()[:-1]
+EMAIL_PASSWORD= (open(os.environ['HOME']+"/monitoring-system/private/email_password", "r")).read()[:-1]
 s = smtplib.SMTP_SSL(host='smtp.gmail.com', port=465)
 s.ehlo()
 s.login(EMAIL_USER, EMAIL_PASSWORD)

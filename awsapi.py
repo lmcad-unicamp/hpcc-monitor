@@ -96,8 +96,6 @@ def printPrices(price):
                     + product["terms"]["Reserved"].values()[i]["priceDimensions"].values()[j]["unit"])
 
 def getpricing(instance_id, ondemand=True, verbose=False):
-    ACCESS_ID = (open("/home/william/.clap/private/access-key", "r")).read()[:-1]
-    SECRET_KEY = (open("/home/william/.clap/private/secret-access-key", "r")).read()[:-1]
 
     client = boto.client('ec2', region_name='us-east-2')
     ec2 = boto.resource('ec2', region_name='us-east-2')
@@ -178,8 +176,6 @@ def getpricing(instance_id, ondemand=True, verbose=False):
     return instance_price
 
 def gettype(instance_id, ondemand=True, verbose=False):
-    ACCESS_ID = (open("/home/william/.clap/private/access-key", "r")).read()[:-1]
-    SECRET_KEY = (open("/home/william/.clap/private/secret-access-key", "r")).read()[:-1]
 
     client = boto.client('ec2', region_name='us-east-2')
 
