@@ -9,26 +9,29 @@ from datetime import datetime,timedelta
 
 home = os.path.dirname(os.path.realpath(__file__))
 
-logger = logging.getLogger(os.path.basename(__file__))
+logger = logging.getLogger(__file__)
 logger.setLevel(logging.INFO)
 fh = logging.FileHandler(home+"/log/audit.log")
 ch = logging.StreamHandler()
-formatter = logging.Formatter('[%(asctime)s] - [%(filename)s] - [%(levelname)5s] - %(message)s')
+formatter = logging.Formatter('[%(asctime)s] - [%(name)s] - [%(levelname)5s] - %(message)s')
 fh.setFormatter(formatter)
 ch.setFormatter(formatter)
 logger.addHandler(fh)
 logger.addHandler(ch)
-logger = logging.LoggerAdapter(logger, {'filename': os.path.basename(__file__)})
 
 ACCESS_ID = (open(home+"/private/aws_access_key", "r")).read()[:-1]
 SECRET_KEY = (open(home+"/private/aws_secret_access_key", "r")).read()[:-1]
 STOPPED_INSTANCES_FILE = home+"/files/stopped-instances.hosts"
+NOTREGISTERED_INSTANCES_FILE = home+"/files/notregistered-instances.hosts"
+
+logger.info("[AUDIT] STARTED TO EXECUTE")
 
 cls = get_driver(Provider.EC2)
 drivers = []
 drivers.append(cls(ACCESS_ID, SECRET_KEY, region="us-east-2"))
 
 stoppedInstancesFromFile = filter(lambda x: x != '',(open(str(STOPPED_INSTANCES_FILE),"r")).read().split('\n'))
+notregisteredInstancesFromFile = filter(lambda x: x != '',(open(str(NOTREGISTERED_INSTANCES_FILE),"r")).read().split('\n'))
 time = timedelta(minutes=2)
 now = datetime.utcnow()
 
@@ -84,13 +87,15 @@ for stoppedHost in stoppedInstancesFromFile:
 ##DETECT NEW HOSTS NOT REGISTERED
 for host in hostsFromProvider:
     if host['id'] not in [ x['name'] for x in hostsFromZabbix]:
-        logger.info("[AUDITOR] [NOT REGISTERED] Host ("+str(host['id'])+") has not been registered")
+        logger.info("[AUDIT] [NOT REGISTERED] Host ("+str(host['id'])+") has not been registered")
         try:
             useremail = z.getUserEmail(host['owner'],selectMedias=[])
             emails = z.getAdminsEmail()
             emails.append(useremail)
-            logger.info("[AUDITOR] [NOT REGISTERED] I AM SENDING AN EMAIL TO ADMINS AND " + host['owner'])
+            logger.info("[AUDIT] [NOT REGISTERED] I AM SENDING AN EMAIL TO ADMINS AND " + host['owner'])
             alert_email(emails,host['id'])
         except (NotFoudException,KeyError) as e:
-            logger.error("[AUDITOR] [NOT REGISTERED] I COULD NOT SEND EMAIL")
+            logger.error("[AUDIT] [NOT REGISTERED] I COULD NOT SEND EMAIL")
             logger.error(e)
+
+logger.info("[AUDIT] STOPPED TO EXECUTE")

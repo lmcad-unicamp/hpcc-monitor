@@ -7,19 +7,20 @@ from datetime import datetime,timedelta
 
 home = os.path.dirname(os.path.realpath(__file__))
 
-logger = logging.getLogger(os.path.basename(__file__))
+logger = logging.getLogger(str(__file__))
 logger.setLevel(logging.INFO)
 fh = logging.FileHandler(home+"/log/control.log")
 ch = logging.StreamHandler()
-formatter = logging.Formatter('[%(asctime)s] - [%(filename)s] - [%(levelname)5s] - %(message)s')
+formatter = logging.Formatter('[%(asctime)s] - [%(name)s] - [%(levelname)5s] - %(message)s')
 fh.setFormatter(formatter)
 ch.setFormatter(formatter)
 logger.addHandler(fh)
 logger.addHandler(ch)
-logger = logging.LoggerAdapter(logger, {'filename': os.path.basename(__file__)})
 
 ACCESS_ID = (open(home+"/private/aws_access_key", "r")).read()[:-1]
 SECRET_KEY = (open(home+"/private/aws_secret_access_key", "r")).read()[:-1]
+
+logger.info("[CONTROL] STARTED TO EXECUTE")
 
 cls = get_driver(Provider.EC2)
 drivers = []
@@ -67,5 +68,5 @@ for host in hostsFromZabbix:
         if host['name'] == hostProvider['id']:
             z.host_user_association(user=hostProvider['owner'],hostname=host['name'])
 
+logger.info("[CONTROL] STOPPED TO EXECUTE")
 
-##DETECT NEW HOSTS (USER ASSOCIATION, ACTION CREATION)
