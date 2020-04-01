@@ -11,11 +11,16 @@ Then, configure with:
 You can use cron to execute Audit and Control Systems periodically
 
 	crontab -e
->SHELL=/bin/bash
-        PATH=/sbin:/bin:/usr/sbin:/usr/bin
-        MAILTO=root
-        HOME=/
-        * * * * * python /home/ubuntu/monitoring-system/audit-system.py
-        * * * * * python /home/ubuntu/monitoring-system/control-system.py
+
+Write:
+
+	SHELL=/bin/bash
+	PATH=/sbin:/bin:/usr/sbin:/usr/bin
+	MAILTO=root
+	HOME=/
+	* * * * * python /home/ubuntu/monitoring-system/audit-system.py
+	* * * * * python /home/ubuntu/monitoring-system/control-system.py
+
+Then:
 
     sudo systemctl restart cron.service
