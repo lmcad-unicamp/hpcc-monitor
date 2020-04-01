@@ -1,4 +1,5 @@
 import logging
+import os
 import zapi as z
 from libcloud.compute.types import Provider
 from libcloud.compute.providers import get_driver
@@ -13,8 +14,9 @@ ch.setFormatter(formatter)
 logger.addHandler(fh)
 logger.addHandler(ch)
 
-ACCESS_ID = (open("private/aws_access_key", "r")).read()[:-1]
-SECRET_KEY = (open("private/aws_secret_access_key", "r")).read()[:-1]
+
+ACCESS_ID = (open(os.environ['HOME']+"/monitoring-system/private/aws_access_key", "r")).read()[:-1]
+SECRET_KEY = (open(os.environ['HOME']+"/monitoring-system/private/aws_secret_access_key", "r")).read()[:-1]
 
 cls = get_driver(Provider.EC2)
 drivers = []

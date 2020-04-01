@@ -1,4 +1,5 @@
 import logging
+import os
 import zapi as z
 from zapi import NotFoudException
 from sendemail import alert_email
@@ -15,9 +16,9 @@ ch.setFormatter(formatter)
 logger.addHandler(fh)
 logger.addHandler(ch)
 
-ACCESS_ID = (open("private/aws_access_key", "r")).read()[:-1]
-SECRET_KEY = (open("private/aws_secret_access_key", "r")).read()[:-1]
-STOPPED_INSTANCES_FILE = "files/stopped-instances.hosts"
+ACCESS_ID = (open(os.environ['HOME']+"/monitoring-system/private/aws_access_key", "r")).read()[:-1]
+SECRET_KEY = (open(os.environ['HOME']+"/monitoring-system/private/aws_secret_access_key", "r")).read()[:-1]
+STOPPED_INSTANCES_FILE = os.environ['HOME']+"/monitoring-system/files/stopped-instances.hosts"
 
 cls = get_driver(Provider.EC2)
 drivers = []
