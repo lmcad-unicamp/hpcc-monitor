@@ -109,7 +109,7 @@ def getpricing(instance_id, ondemand=True, verbose=False):
 
     instance_type = INSTANCE_INFO['Reservations'][0]['Instances'][0]['InstanceType']
     image_id = INSTANCE_INFO['Reservations'][0]['Instances'][0]['ImageId']
-    image = client.describe_images(ImageIds=[image_id], aws_access_key_id=ACCESS_ID, aws_secret_access_key=SECRET_KEY)
+    image = client.describe_images(ImageIds=[image_id])#, aws_access_key_id=ACCESS_ID, aws_secret_access_key=SECRET_KEY)
     operating_system = findoperatingsystem(image['Images'][0]['Description'],image['Images'][0]['Name'])
     if operating_system == 'Windows':
         #Falta o Bring Your Own License
@@ -153,8 +153,8 @@ def getpricing(instance_id, ondemand=True, verbose=False):
         if not availability_zone[-1].isdigit():
             availability_zone = availability_zone[:-1]
 
-        prices = boto.client('pricing', aws_access_key_id=ACCESS_ID, aws_secret_access_key=SECRET_KEY)
-        price=prices.get_products(ServiceCode="AmazonEC2", aws_access_key_id=ACCESS_ID, aws_secret_access_key=SECRET_KEY,
+        prices = boto.client('pricing', region_name='us-east-1', aws_access_key_id=ACCESS_ID, aws_secret_access_key=SECRET_KEY)
+        price=prices.get_products(ServiceCode="AmazonEC2", 
                                 Filters=[{'Type':"TERM_MATCH",'Field':"servicecode",'Value':"AmazonEC2"},
                                         {'Type':"TERM_MATCH",'Field':"instanceType",'Value':str(instance_type)},
                                         {'Type':"TERM_MATCH",'Field':"location",'Value':str(regions[str(availability_zone)])},
