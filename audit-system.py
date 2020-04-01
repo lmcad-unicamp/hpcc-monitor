@@ -30,11 +30,16 @@ cls = get_driver(Provider.EC2)
 drivers = []
 drivers.append(cls(ACCESS_ID, SECRET_KEY, region="us-east-2"))
 
-stoppedInstancesFromFile = filter(lambda x: x != '',(open(str(STOPPED_INSTANCES_FILE),"r")).read().split('\n'))
-notregisteredInstancesFromFile = filter(lambda x: x != '',(open(str(NOTREGISTERED_INSTANCES_FILE),"r")).read().split('\n'))
-time = timedelta(minutes=2)
-now = datetime.utcnow()
+stoppedInstancesFromFile = []
+if os.path.isfile(STOPPED_INSTANCES_FILE):
+    stoppedInstancesFromFile = filter(lambda x: x != '',(open(str(STOPPED_INSTANCES_FILE),"r")).read().split('\n'))
 
+notregisteredInstancesFromFile = []
+if os.path.isfile(NOTREGISTERED_INSTANCES_FILE):
+    notregisteredInstancesFromFile = filter(lambda x: x != '',(open(str(NOTREGISTERED_INSTANCES_FILE),"r")).read().split('\n'))
+
+time2minutes = timedelta(minutes=2)
+now = datetime.utcnow()
 hostsFromProvider = []
 stoppedHostsFromProvider = []
 terminatedHostsFromProvider = []
@@ -43,7 +48,7 @@ for driver in drivers:
         #TIRAR ISSO
         if node.extra['tags']['owner'] == 'william':
             launchtime = datetime.strptime(node.extra['launch_time'],'%Y-%m-%dT%H:%M:%S.%fZ')
-            if now - launchtime > time:
+            if now - launchtime > time2minutes:
                 if 'zabbixignore' in node.extra['tags'] and node.extra['tags']['zabbixignore'] in ['true', 'True']:
                     continue
                 if node.extra['status'] != 'terminated':
@@ -57,45 +62,64 @@ try:
 except:
     pass
 
-##DISABLE TRIGGERS FROM STOPPED INSTANCES
-f = open(str(STOPPED_INSTANCES_FILE),"w")
-for stoppedHost in stoppedHostsFromProvider:
-    f.write(str(stoppedHost)+'\n')
+def no():
+    ##DISABLE TRIGGERS FROM STOPPED INSTANCES
+    f = open(str(STOPPED_INSTANCES_FILE),"w")
+    for stoppedHost in stoppedHostsFromProvider:
+        f.write(str(stoppedHost)+'\n')
 
-for stoppedHost in stoppedHostsFromProvider[:]:
-    if stoppedHost in stoppedInstancesFromFile[:]:
-        stoppedHostsFromProvider.remove(stoppedHost)
-        stoppedInstancesFromFile.remove(stoppedHost)
+    for stoppedHost in stoppedHostsFromProvider[:]:
+        if stoppedHost in stoppedInstancesFromFile[:]:
+            stoppedHostsFromProvider.remove(stoppedHost)
+            stoppedInstancesFromFile.remove(stoppedHost)
 
-stoppedHostsFromProvider = z.zapi.host.get(hostids=z.getHostsIDs(stoppedHostsFromProvider), selectTriggers=['triggerid', 'description', 'status'])
-stoppedInstancesFromFile = z.zapi.host.get(hostids=z.getHostsIDs(stoppedInstancesFromFile), selectTriggers=['triggerid', 'description', 'status'])
+    stoppedHostsFromProvider = z.zapi.host.get(hostids=z.getHostsIDs(stoppedHostsFromProvider), selectTriggers=['triggerid', 'description', 'status'])
+    stoppedInstancesFromFile = z.zapi.host.get(hostids=z.getHostsIDs(stoppedInstancesFromFile), selectTriggers=['triggerid', 'description', 'status'])
 
-for stoppedHost in stoppedHostsFromProvider:
-    triggers = []
-    for trigger in stoppedHost['triggers']:
-        z.zapi.trigger.update(triggerid=trigger['triggerid'], status = '1')
-        triggers.append(trigger['triggerid'])
-    logger.info("[AUDIT] HOST " + str(stoppedHost['host']) + " WAS STOPPED, SO I DISABLED THESE TRIGGERS: " + str(', '.join(triggers)))
 
-for stoppedHost in stoppedInstancesFromFile:
-    triggers = []
-    for trigger in stoppedHost['triggers']:
-        z.zapi.trigger.update(triggerid=trigger['triggerid'], status = '0')
-        triggers.append(trigger['triggerid'])
-    logger.info("[AUDIT] HOST " + str(stoppedHost['host']) + " WAS STARTED, SO I ENABLED THESE TRIGGERS: " + str(', '.join(triggers)))
+    for stoppedHost in stoppedHostsFromProvider:
+        triggers = []
+        for trigger in stoppedHost['triggers']:
+            z.zapi.trigger.update(triggerid=trigger['triggerid'], status = '1')
+            triggers.append(trigger['triggerid'])
+        logger.info("[AUDIT] HOST " + str(stoppedHost['host']) + " WAS STOPPED, SO I DISABLED THESE TRIGGERS: " + str(', '.join(triggers)))
+
+    for stoppedHost in stoppedInstancesFromFile:
+        triggers = []
+        for trigger in stoppedHost['triggers']:
+            z.zapi.trigger.update(triggerid=trigger['triggerid'], status = '0')
+            triggers.append(trigger['triggerid'])
+        logger.info("[AUDIT] HOST " + str(stoppedHost['host']) + " WAS STARTED, SO I ENABLED THESE TRIGGERS: " + str(', '.join(triggers)))
 
 ##DETECT NEW HOSTS NOT REGISTERED
+notregisteredInstances = {}
+for notregistered in [ x.split(',') for x in notregisteredInstancesFromFile]:
+    notregisteredInstances[notregistered[0]] = datetime.strptime(notregistered[1],'%Y-%m-%d %H:%M:%S.%f')
+
+
+newNotregisteredInstances = []
+time10minutes = timedelta(minutes=1)
+now = datetime.utcnow()
+
 for host in hostsFromProvider:
     if host['id'] not in [ x['name'] for x in hostsFromZabbix]:
-        logger.info("[AUDIT] [NOT REGISTERED] Host ("+str(host['id'])+") has not been registered")
-        try:
-            useremail = z.getUserEmail(host['owner'],selectMedias=[])
-            emails = z.getAdminsEmail()
-            emails.append(useremail)
-            logger.info("[AUDIT] [NOT REGISTERED] I AM SENDING AN EMAIL TO ADMINS AND " + host['owner'])
-            alert_email(emails,host['id'])
-        except (NotFoudException,KeyError) as e:
-            logger.error("[AUDIT] [NOT REGISTERED] I COULD NOT SEND EMAIL")
-            logger.error(e)
+        if host['id'] not in [ x for x in notregisteredInstances.keys()] or now - notregisteredInstances[host['id']] > time10minutes:
+            newNotregisteredInstances.append(str(host['id'])+','+str(datetime.utcnow()))
+            logger.info("[AUDIT] [NOT REGISTERED] Host ("+str(host['id'])+") has not been registered")
+            try:
+                useremail = z.getUserEmail(host['owner'],selectMedias=[])
+                emails = z.getAdminsEmail()
+                emails.append(useremail)
+                logger.info("[AUDIT] [NOT REGISTERED] I AM SENDING AN EMAIL TO ADMINS AND " + host['owner'])
+                alert_email(emails,host['id'])
+            except (NotFoudException,KeyError) as e:
+                logger.error("[AUDIT] [NOT REGISTERED] I COULD NOT SEND EMAIL")
+                logger.error(e)
+        else:
+            newNotregisteredInstances.append(str(host['id'])+','+str(notregisteredInstances[host['id']]))
+
+f = open(str(NOTREGISTERED_INSTANCES_FILE),"w")
+for notregistered in newNotregisteredInstances:
+    f.write(str(notregistered)+'\n')
 
 logger.info("[AUDIT] STOPPED TO EXECUTE")
