@@ -55,17 +55,10 @@ for driver in drivers:
                     continue
                 if node.extra['status'] != 'terminated':
                     hostsFromProvider.append({'id':node.id, 'owner':node.extra['tags']['owner']})
-                print node.id
-                print(node.extra['status'])
-                print(node.id in [x for x in stoppedInstances.keys()])
-                if node.id in [x for x in stoppedInstances.keys()]:
-                    print(now - stoppedInstances[node.id] < time2minutes)
-                else:
-                    print False
                 if node.extra['status'] in ['stopped', 'stopping']:
                     stoppedHostsFromProvider.append(node.id)
                     f.write(str(node.id)+','+str(node.extra['launch_time'])+'\n')
-                elif node.id in [x for x in stoppedInstances.keys()]: #and now - stoppedInstances[node.id] < time2minutes:
+                elif node.id in [x for x in stoppedInstances.keys()]:
                     z.host_enable(hostid=host[node.id])
 f.close()
 
