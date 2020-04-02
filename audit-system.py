@@ -33,6 +33,9 @@ drivers.append(cls(ACCESS_ID, SECRET_KEY, region="us-east-2"))
 stoppedInstancesFromFile = []
 if os.path.isfile(STOPPED_INSTANCES_FILE):
     stoppedInstancesFromFile = filter(lambda x: x != '',(open(str(STOPPED_INSTANCES_FILE),"r")).read().split('\n'))
+stoppedInstances = {}
+for stopped in [ x.split(',') for x in stoppedInstancesFromFile]:
+    stoppedInstances[stopped[0]] = datetime.strptime(stopped[1],'%Y-%m-%d %H:%M:%S.%f')
 
 notregisteredInstancesFromFile = []
 if os.path.isfile(NOTREGISTERED_INSTANCES_FILE):
@@ -62,34 +65,32 @@ try:
 except:
     pass
 
-def no():
-    ##DISABLE TRIGGERS FROM STOPPED INSTANCES
-    f = open(str(STOPPED_INSTANCES_FILE),"w")
-    for stoppedHost in stoppedHostsFromProvider:
-        f.write(str(stoppedHost)+'\n')
+##DISABLE TRIGGERS FROM STOPPED INSTANCES
+f = open(str(STOPPED_INSTANCES_FILE),"w")
+for stoppedHost in stoppedHostsFromProvider:
+    f.write(str(stoppedHost)+','+str(datetime.utcnow())+'\n')
 
-    for stoppedHost in stoppedHostsFromProvider[:]:
-        if stoppedHost in stoppedInstancesFromFile[:]:
-            stoppedHostsFromProvider.remove(stoppedHost)
-            stoppedInstancesFromFile.remove(stoppedHost)
-
-    stoppedHostsFromProvider = z.zapi.host.get(hostids=z.getHostsIDs(stoppedHostsFromProvider), selectTriggers=['triggerid', 'description', 'status'])
-    stoppedInstancesFromFile = z.zapi.host.get(hostids=z.getHostsIDs(stoppedInstancesFromFile), selectTriggers=['triggerid', 'description', 'status'])
+for stoppedHost in stoppedHostsFromProvider[:]:
+    if stoppedHost in [ x for x in stoppedInstances.keys()]:
+        stoppedHostsFromProvider.remove(stoppedHost)
+        del stoppedInstances[stoppedHost]
+stoppedHostsFromProvider = z.zapi.host.get(hostids=z.getHostsIDs(stoppedHostsFromProvider), selectTriggers=['triggerid', 'description', 'status'])
+stoppedInstancesFromFile = z.zapi.host.get(hostids=z.getHostsIDs([x for x in stoppedInstances.keys()]), selectTriggers=['triggerid', 'description', 'status'])
 
 
-    for stoppedHost in stoppedHostsFromProvider:
-        triggers = []
-        for trigger in stoppedHost['triggers']:
-            z.zapi.trigger.update(triggerid=trigger['triggerid'], status = '1')
-            triggers.append(trigger['triggerid'])
-        logger.info("[AUDIT] HOST " + str(stoppedHost['host']) + " WAS STOPPED, SO I DISABLED THESE TRIGGERS: " + str(', '.join(triggers)))
+for stoppedHost in stoppedHostsFromProvider:
+    triggers = []
+    for trigger in stoppedHost['triggers']:
+        z.zapi.trigger.update(triggerid=trigger['triggerid'], status = '1')
+        triggers.append(trigger['triggerid'])
+    logger.info("[AUDIT] HOST " + str(stoppedHost['host']) + " WAS STOPPED, SO I DISABLED THESE TRIGGERS: " + str(', '.join(triggers)))
 
-    for stoppedHost in stoppedInstancesFromFile:
-        triggers = []
-        for trigger in stoppedHost['triggers']:
-            z.zapi.trigger.update(triggerid=trigger['triggerid'], status = '0')
-            triggers.append(trigger['triggerid'])
-        logger.info("[AUDIT] HOST " + str(stoppedHost['host']) + " WAS STARTED, SO I ENABLED THESE TRIGGERS: " + str(', '.join(triggers)))
+for stoppedHost in stoppedInstancesFromFile:
+    triggers = []
+    for trigger in stoppedHost['triggers']:
+        z.zapi.trigger.update(triggerid=trigger['triggerid'], status = '0')
+        triggers.append(trigger['triggerid'])
+    logger.info("[AUDIT] HOST " + str(stoppedHost['host']) + " WAS STARTED, SO I ENABLED THESE TRIGGERS: " + str(', '.join(triggers)))
 
 ##DETECT NEW HOSTS NOT REGISTERED
 notregisteredInstances = {}

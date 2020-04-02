@@ -19,6 +19,13 @@ logger.addHandler(ch)
 
 ACCESS_ID = (open(home+"/private/aws_access_key", "r")).read()[:-1]
 SECRET_KEY = (open(home+"/private/aws_secret_access_key", "r")).read()[:-1]
+STOPPED_INSTANCES_FILE = home+"/files/stopped-instances.hosts"
+stoppedInstancesFromFile = []
+if os.path.isfile(STOPPED_INSTANCES_FILE):
+    stoppedInstancesFromFile = filter(lambda x: x != '',(open(str(STOPPED_INSTANCES_FILE),"r")).read().split('\n'))
+stoppedInstances = {}
+for stopped in [ x.split(',') for x in stoppedInstancesFromFile]:
+    stoppedInstances[stopped[0]] = datetime.strptime(stopped[1],'%Y-%m-%d %H:%M:%S.%f')
 
 logger.info("[CONTROL] STARTED TO EXECUTE")
 
@@ -35,11 +42,23 @@ for driver in drivers:
         #TIRAR ISSO
         if node.extra['tags']['owner'] == 'william':
             launchtime = datetime.strptime(node.extra['launch_time'],'%Y-%m-%dT%H:%M:%S.%fZ')
-            if now - launchtime > time:
+            logger.info(node.id)
+            logger.info(now-launchtime>time)
+            logger.info(node.id in [x for x in stoppedInstances.keys()])
+            if node.id in [x for x in stoppedInstances.keys()]:
+                logger.info(now - stoppedInstances[node.id] > time)
+            else:
+                print False
+            if now - launchtime > time or (node.id in [x for x in stoppedInstances.keys()] and now - stoppedInstances[node.id] > time):
                 if 'zabbixignore' in node.extra['tags'] and node.extra['tags']['zabbixignore'] in ['true','True']:
                     continue
+                
+                logger.info(node.extra['status'])
                 if node.extra['status'] != 'terminated':
+                    logger.info("SIMMMMMM")
                     hostsFromProvider.append({'id':node.id, 'owner':node.extra['tags']['owner']})
+            
+
 
 ##DETECT TERMINATED INSTACES AND DISABLE HOSTS
 hostsFromZabbix = z.zapi.host.get(output = ['name'], filter={'status':'0'})
