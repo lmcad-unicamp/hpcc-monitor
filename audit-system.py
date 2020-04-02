@@ -13,7 +13,7 @@ logger = logging.getLogger(__file__)
 logger.setLevel(logging.INFO)
 fh = logging.FileHandler(home+"/log/audit.log")
 ch = logging.StreamHandler()
-formatter = logging.Formatter('[%(asctime)s] - [%(name)s] - [%(levelname)5s] - %(message)s')
+formatter = logging.Formatter('[%(asctime)s] - [%(levelname)5s] - %(message)s')
 fh.setFormatter(formatter)
 ch.setFormatter(formatter)
 logger.addHandler(fh)
@@ -98,7 +98,7 @@ for notregistered in [ x.split(',') for x in notregisteredInstancesFromFile]:
 
 
 newNotregisteredInstances = []
-time10minutes = timedelta(minutes=1)
+time10minutes = timedelta(minutes=10)
 now = datetime.utcnow()
 
 for host in hostsFromProvider:
