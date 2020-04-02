@@ -20,45 +20,31 @@ logger.addHandler(ch)
 ACCESS_ID = (open(home+"/private/aws_access_key", "r")).read()[:-1]
 SECRET_KEY = (open(home+"/private/aws_secret_access_key", "r")).read()[:-1]
 STOPPED_INSTANCES_FILE = home+"/files/stopped-instances.hosts"
+
 stoppedInstancesFromFile = []
 if os.path.isfile(STOPPED_INSTANCES_FILE):
     stoppedInstancesFromFile = filter(lambda x: x != '',(open(str(STOPPED_INSTANCES_FILE),"r")).read().split('\n'))
 stoppedInstances = {}
 for stopped in [ x.split(',') for x in stoppedInstancesFromFile]:
-    stoppedInstances[stopped[0]] = datetime.strptime(stopped[1],'%Y-%m-%d %H:%M:%S.%f')
+    stoppedInstances[stopped[0]] = datetime.strptime(stopped[1],'%Y-%m-%dT%H:%M:%S.%fZ')
 
-logger.info("[CONTROL] STARTED TO EXECUTE")
 
 cls = get_driver(Provider.EC2)
 drivers = []
 drivers.append(cls(ACCESS_ID, SECRET_KEY, region="us-east-2"))
 
-time = timedelta(minutes=2)
+time2minutes = timedelta(minutes=2)
 now = datetime.utcnow()
 
 hostsFromProvider = []
 for driver in drivers:
     for node in driver.list_nodes():
         #TIRAR ISSO
-        if node.extra['tags']['owner'] == 'william':
-            launchtime = datetime.strptime(node.extra['launch_time'],'%Y-%m-%dT%H:%M:%S.%fZ')
-            logger.info(node.id)
-            logger.info(now-launchtime>time)
-            logger.info(node.id in [x for x in stoppedInstances.keys()])
-            if node.id in [x for x in stoppedInstances.keys()]:
-                logger.info(now - stoppedInstances[node.id] > time)
-            else:
-                print False
-            if now - launchtime > time or (node.id in [x for x in stoppedInstances.keys()] and now - stoppedInstances[node.id] > time):
-                if 'zabbixignore' in node.extra['tags'] and node.extra['tags']['zabbixignore'] in ['true','True']:
-                    continue
-                
-                logger.info(node.extra['status'])
-                if node.extra['status'] != 'terminated':
-                    logger.info("SIMMMMMM")
-                    hostsFromProvider.append({'id':node.id, 'owner':node.extra['tags']['owner']})
-            
-
+        if 'owner' in node.extra['tags'] and node.extra['tags']['owner'] == 'william':
+            if 'zabbixignore' in node.extra['tags'] and node.extra['tags']['zabbixignore'] in ['true','True']:
+                continue
+            if node.extra['status'] != 'terminated':
+                hostsFromProvider.append({'id':node.id, 'owner':node.extra['tags']['owner']})
 
 ##DETECT TERMINATED INSTACES AND DISABLE HOSTS
 hostsFromZabbix = z.zapi.host.get(output = ['name'], filter={'status':'0'})
@@ -86,6 +72,3 @@ for host in hostsFromZabbix:
     for hostProvider in hostsFromProvider:
         if host['name'] == hostProvider['id']:
             z.host_user_association(user=hostProvider['owner'],hostname=host['name'])
-
-logger.info("[CONTROL] STOPPED TO EXECUTE")
-

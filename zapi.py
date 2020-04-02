@@ -99,7 +99,25 @@ ZABBIX_PASSWORD= (open(home+"/private/zabbix_password", "r")).read()[:-1]
 zapi = pyzabbix.ZabbixAPI("http://"+str(IPSERVER)+"/zabbix/api_jsonrpc.php")
 zapi.login(ZABBIX_USER, ZABBIX_PASSWORD)
 
-##DESABILITA OS HOSTS TERMINADOS
+##GET HOSTS
+def get_hosts(filter=None,hostsid=None,selectTriggers=None):
+    try:
+        if hostsid == []:
+            return []
+        print filter
+        return zapi.host.get(hostsid=hostsid, output = ['name'], filter=filter, selectTriggers=selectTriggers)
+    except (pyzabbix.ZabbixAPIException,NotFoudException) as e:
+        logger.error(e)
+        return []
+
+def trigger_disable(triggerid=None):
+    try:
+        zapi.trigger.update(triggerid=triggerid, status = '1')
+    except (pyzabbix.ZabbixAPIException,NotFoudException) as e:
+        logger.error(e)
+
+
+##DESABILITA OS HOSTS
 def host_disable(hostname=None, hostid=None):
     try:
         if hostname:
@@ -113,6 +131,22 @@ def host_disable(hostname=None, hostid=None):
         logger.info("[DISABLE] HOST "+str(hostname)+" HAS BEEN TERMINATED AND WAS DISABLED")
     except (pyzabbix.ZabbixAPIException,NotFoudException) as e:
         logger.error(e)
+
+##HABILITA OS HOSTS
+def host_enable(hostname=None, hostid=None):
+    try:
+        if hostname:
+            hostid = getHostID(hostname)
+        elif hostid:
+            hostname = getHostname(hostid)
+        else:
+            logger.error("[ZAPI] I NEED A HOST ID OR NAME")
+            return
+        zapi.host.update(hostid=hostid, status="0")
+        logger.info("[ENABLE] HOST "+str(hostname)+" HAS BEEN RESTARTED AND WAS ENABLED")
+    except (pyzabbix.ZabbixAPIException,NotFoudException) as e:
+        logger.error(e)
+
 
 ##ASSOCIA OS HOSTS AO USUARIO
 def host_user_association(user=None, hostname=None, hostid=None):

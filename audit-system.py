@@ -24,8 +24,6 @@ SECRET_KEY = (open(home+"/private/aws_secret_access_key", "r")).read()[:-1]
 STOPPED_INSTANCES_FILE = home+"/files/stopped-instances.hosts"
 NOTREGISTERED_INSTANCES_FILE = home+"/files/notregistered-instances.hosts"
 
-logger.info("[AUDIT] STARTED TO EXECUTE")
-
 cls = get_driver(Provider.EC2)
 drivers = []
 drivers.append(cls(ACCESS_ID, SECRET_KEY, region="us-east-2"))
@@ -35,7 +33,7 @@ if os.path.isfile(STOPPED_INSTANCES_FILE):
     stoppedInstancesFromFile = filter(lambda x: x != '',(open(str(STOPPED_INSTANCES_FILE),"r")).read().split('\n'))
 stoppedInstances = {}
 for stopped in [ x.split(',') for x in stoppedInstancesFromFile]:
-    stoppedInstances[stopped[0]] = datetime.strptime(stopped[1],'%Y-%m-%d %H:%M:%S.%f')
+    stoppedInstances[stopped[0]] = datetime.strptime(stopped[1],'%Y-%m-%dT%H:%M:%S.%fZ')
 
 notregisteredInstancesFromFile = []
 if os.path.isfile(NOTREGISTERED_INSTANCES_FILE):
@@ -46,18 +44,30 @@ now = datetime.utcnow()
 hostsFromProvider = []
 stoppedHostsFromProvider = []
 terminatedHostsFromProvider = []
+f = open(str(STOPPED_INSTANCES_FILE),"w")
 for driver in drivers:
     for node in driver.list_nodes():
         #TIRAR ISSO
-        if node.extra['tags']['owner'] == 'william':
+        if 'owner' in node.extra['tags']:# and node.extra['tags']['owner'] == 'william':
             launchtime = datetime.strptime(node.extra['launch_time'],'%Y-%m-%dT%H:%M:%S.%fZ')
             if now - launchtime > time2minutes:
                 if 'zabbixignore' in node.extra['tags'] and node.extra['tags']['zabbixignore'] in ['true', 'True']:
                     continue
                 if node.extra['status'] != 'terminated':
                     hostsFromProvider.append({'id':node.id, 'owner':node.extra['tags']['owner']})
-                if node.extra['status'] == 'stopped':
+                print node.id
+                print(node.extra['status'])
+                print(node.id in [x for x in stoppedInstances.keys()])
+                if node.id in [x for x in stoppedInstances.keys()]:
+                    print(now - stoppedInstances[node.id] < time2minutes)
+                else:
+                    print False
+                if node.extra['status'] in ['stopped', 'stopping']:
                     stoppedHostsFromProvider.append(node.id)
+                    f.write(str(node.id)+','+str(node.extra['launch_time'])+'\n')
+                elif node.id in [x for x in stoppedInstances.keys()]: #and now - stoppedInstances[node.id] < time2minutes:
+                    z.host_enable(hostid=host[node.id])
+f.close()
 
 hostsFromZabbix = z.zapi.host.get(output = ['name'], filter={'status':'0'})
 try:
@@ -66,10 +76,6 @@ except:
     pass
 
 ##DISABLE TRIGGERS FROM STOPPED INSTANCES
-f = open(str(STOPPED_INSTANCES_FILE),"w")
-for stoppedHost in stoppedHostsFromProvider:
-    f.write(str(stoppedHost)+','+str(datetime.utcnow())+'\n')
-
 for stoppedHost in stoppedHostsFromProvider[:]:
     if stoppedHost in [ x for x in stoppedInstances.keys()]:
         stoppedHostsFromProvider.remove(stoppedHost)
@@ -122,5 +128,4 @@ for host in hostsFromProvider:
 f = open(str(NOTREGISTERED_INSTANCES_FILE),"w")
 for notregistered in newNotregisteredInstances:
     f.write(str(notregistered)+'\n')
-
-logger.info("[AUDIT] STOPPED TO EXECUTE")
+f.close()
