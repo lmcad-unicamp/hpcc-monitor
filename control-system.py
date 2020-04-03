@@ -39,21 +39,23 @@ now = datetime.utcnow()
 hostsFromProvider = []
 for driver in drivers:
     for node in driver.list_nodes():
-        #TIRAR ISSO
-        if 'owner' in node.extra['tags'] and node.extra['tags']['owner'] == 'william':
             if 'zabbixignore' in node.extra['tags'] and node.extra['tags']['zabbixignore'] in ['true','True']:
                 continue
-            if node.extra['status'] != 'terminated':
-                hostsFromProvider.append({'id':node.id, 'owner':node.extra['tags']['owner']})
+            if node.extra['status'] not in ['terminated', 'shutting-down']:
+                try:
+                    hostsFromProvider.append({'id':node.id, 'owner':node.extra['tags']['owner']})
+                except:
+                    #TIRAR ISSO
+                    hostsFromProvider.append({'id':node.id, 'owner':'william'})
 
-##DETECT TERMINATED INSTACES AND DISABLE HOSTS
+
 hostsFromZabbix = z.zapi.host.get(output = ['name'], filter={'status':'0'})
 try:
     hostsFromZabbix.remove({u'hostid': u'10084', u'name': u'Zabbix server'})
-    hostsFromZabbix.remove({u'hostid': u'10308', u'name': u'audit-system'})
 except:
     pass
 
+##DETECT TERMINATED INSTACES AND DISABLE HOSTS
 for host in hostsFromZabbix:
     if host['name'] not in [ x['id'] for x in hostsFromProvider]:
         z.host_disable(hostid=host['hostid'])

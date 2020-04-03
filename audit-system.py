@@ -47,19 +47,21 @@ terminatedHostsFromProvider = []
 f = open(str(STOPPED_INSTANCES_FILE),"w")
 for driver in drivers:
     for node in driver.list_nodes():
-        #TIRAR ISSO
-        if 'owner' in node.extra['tags']:# and node.extra['tags']['owner'] == 'william':
             launchtime = datetime.strptime(node.extra['launch_time'],'%Y-%m-%dT%H:%M:%S.%fZ')
             if now - launchtime > time2minutes:
                 if 'zabbixignore' in node.extra['tags'] and node.extra['tags']['zabbixignore'] in ['true', 'True']:
                     continue
-                if node.extra['status'] != 'terminated':
-                    hostsFromProvider.append({'id':node.id, 'owner':node.extra['tags']['owner']})
+                if node.extra['status'] not in ['terminated', 'shutting-down']:
+                    try:
+                        hostsFromProvider.append({'id':node.id, 'owner':node.extra['tags']['owner']})
+                    except:
+                        #TIRAR ISSO
+                        hostsFromProvider.append({'id':node.id, 'owner':'william'})
                 if node.extra['status'] in ['stopped', 'stopping']:
                     stoppedHostsFromProvider.append(node.id)
                     f.write(str(node.id)+','+str(node.extra['launch_time'])+'\n')
-                elif node.id in [x for x in stoppedInstances.keys()]:
-                    z.host_enable(hostid=host[node.id])
+                #elif node.id in [x for x in stoppedInstances.keys()]:
+                #    z.host_enable(hostid=host[node.id])
 f.close()
 
 hostsFromZabbix = z.zapi.host.get(output = ['name'], filter={'status':'0'})
@@ -67,6 +69,7 @@ try:
     hostsFromZabbix.remove({u'hostid': u'10084', u'name': u'Zabbix server'})
 except:
     pass
+
 
 ##DISABLE TRIGGERS FROM STOPPED INSTANCES
 for stoppedHost in stoppedHostsFromProvider[:]:
