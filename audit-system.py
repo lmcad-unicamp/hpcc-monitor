@@ -60,8 +60,6 @@ for driver in drivers:
                 if node.extra['status'] in ['stopped', 'stopping']:
                     stoppedHostsFromProvider.append(node.id)
                     f.write(str(node.id)+','+str(node.extra['launch_time'])+'\n')
-                #elif node.id in [x for x in stoppedInstances.keys()]:
-                #    z.host_enable(hostid=host[node.id])
 f.close()
 
 hostsFromZabbix = z.zapi.host.get(output = ['name'], filter={'status':'0'})
