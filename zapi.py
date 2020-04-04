@@ -7,6 +7,13 @@ import inspect
 home = os.path.dirname(os.path.realpath(__file__))
 logger = logging.getLogger(str(inspect.getouterframes(inspect.currentframe(), 2)[1][1]))
 
+IPSERVER= (open(home+"/private/ip_server", "r")).read()[:-1]
+ZABBIX_USER= (open(home+"/private/zabbix_user", "r")).read()[:-1]
+ZABBIX_PASSWORD= (open(home+"/private/zabbix_password", "r")).read()[:-1]
+
+zapi = pyzabbix.ZabbixAPI("http://"+str(IPSERVER)+"/zabbix/api_jsonrpc.php")
+zapi.login(ZABBIX_USER, ZABBIX_PASSWORD)
+
 class NotFoudException(Exception):
     pass
 
@@ -89,15 +96,6 @@ def getHostGroupID(hostgroupname):
         if hostgroup['name'] == hostgroupname:
             return str(hostgroup['groupid'])
     raise NotFoudException("[ZAPI] HOST GROUP DOES NOT EXIST: " + str(hostgroupname))
-
-IPSERVER= (open(home+"/private/ip_server", "r")).read()[:-1]
-ZABBIX_USER= (open(home+"/private/zabbix_user", "r")).read()[:-1]
-ZABBIX_PASSWORD= (open(home+"/private/zabbix_password", "r")).read()[:-1]
-
-
-
-zapi = pyzabbix.ZabbixAPI("http://"+str(IPSERVER)+"/zabbix/api_jsonrpc.php")
-zapi.login(ZABBIX_USER, ZABBIX_PASSWORD)
 
 ##GET HOSTS
 def get_hosts(filter=None,hostsid=None,selectTriggers=None):
@@ -196,6 +194,7 @@ def host_update_price(hostname=None, hostid=None):
             flagprice = True
             value = macro['value']
             if float(value) != float(hostprice):
+                os.system("zabbix_sender -z "+str(IPSERVER)+" -s "+str(hostname)+" -k cloud.price -o "+str(hostprice))
                 flagprice = False
                 macro['value'] = hostprice
                 logger.info("[PRICING] PRICE OF "+str(hostname)+" UPDATED FROM "+str(value)+" TO "+str(hostprice))
@@ -267,3 +266,37 @@ def host_update_type(hostname=None, hostid=None):
                 logger.info("[TYPE] HOST "+str(hostname)+" IS NOW ASSOCIATE WITH TEMPLATE "+str(hostfamily))
             except (pyzabbix.ZabbixAPIException,NotFoudException) as e:
                 logger.error(e)
+
+
+##ARRUMAR O UPTIME
+def host_update_uptime(hostname=None, hostid=None, uptime=None):
+    if hostname:
+        hostid = getHostID(hostname)
+        macrosFromHost = zapi.host.get(hostids=hostid, selectMacros="extend", output=["macros"])
+    elif hostid:
+        macrosFromHost = zapi.host.get(hostids=hostid, selectMacros="extend", output=["macros"])
+        hostname = getHostname(hostid)
+    else:
+        logger.error("[ZAPI] I NEED A HOST ID OR NAME")
+    if not uptime:
+        logger.error("[ZAPI] I NEED A UPTIME")
+        return
+
+
+    macros = []
+    flag = False
+    for macro in macrosFromHost[0]['macros']:
+        if '{$UPTIME}' in macro['macro']:
+            flag = True
+            macro['value'] = uptime
+        macros.append(macro)
+
+    if not flag:
+        macro = {'macro':'{$UPTIME}', 'value':str(uptime)}
+        macros.append(macro)
+        logger.info("[TYPE] UPTIME OF "+str(hostname)+" ADDED")
+
+    try:
+        zapi.host.update(hostid=getHostID(hostname), macros=macros)
+    except NotFoudException as e:
+        logger.error(e)

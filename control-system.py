@@ -33,8 +33,6 @@ cls = get_driver(Provider.EC2)
 drivers = []
 drivers.append(cls(ACCESS_ID, SECRET_KEY, region="us-east-2"))
 
-time2minutes = timedelta(minutes=2)
-now = datetime.utcnow()
 
 hostsFromProvider = []
 for driver in drivers:
@@ -43,10 +41,10 @@ for driver in drivers:
                 continue
             if node.extra['status'] not in ['terminated', 'shutting-down']:
                 try:
-                    hostsFromProvider.append({'id':node.id, 'owner':node.extra['tags']['owner']})
+                    hostsFromProvider.append({'id':node.id, 'owner':node.extra['tags']['owner'], 'launchtime':datetime.strptime(node.extra['launch_time'],'%Y-%m-%dT%H:%M:%S.%fZ')})
                 except:
                     #TIRAR ISSO
-                    hostsFromProvider.append({'id':node.id, 'owner':'william'})
+                    hostsFromProvider.append({'id':node.id, 'owner':'william', 'launchtime':datetime.strptime(node.extra['launch_time'],'%Y-%m-%dT%H:%M:%S.%fZ')})
 
 
 hostsFromZabbix = z.zapi.host.get(output = ['name'], filter={'status':'0'})
@@ -68,6 +66,14 @@ for host in hostsFromZabbix:
 ##DETECT CHANGED PRICES
 for host in hostsFromZabbix:
     z.host_update_price(hostid=host['hostid'])
+
+##UPDATE uptime
+now = datetime.utcnow()
+for host in hostsFromZabbix:
+    launchtime = [ x['launchtime'] for x in hostsFromProvider if str(x['id']) == str(host['name']) ][0]
+    uptime = str((now - launchtime).total_seconds())
+    z.host_update_uptime(hostid=host['hostid'],uptime=uptime)
+
 
 ##ASSOCIATE USER AND HOST
 for host in hostsFromZabbix:
