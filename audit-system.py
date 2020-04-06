@@ -39,7 +39,7 @@ notregisteredInstancesFromFile = []
 if os.path.isfile(NOTREGISTERED_INSTANCES_FILE):
     notregisteredInstancesFromFile = filter(lambda x: x != '',(open(str(NOTREGISTERED_INSTANCES_FILE),"r")).read().split('\n'))
 
-time2minutes = timedelta(minutes=2)
+time2minutes = timedelta(minutes=4)
 now = datetime.utcnow()
 hostsFromProvider = []
 stoppedHostsFromProvider = []
