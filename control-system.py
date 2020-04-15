@@ -71,7 +71,7 @@ for host in hostsFromZabbix:
 now = datetime.utcnow()
 for host in hostsFromZabbix:
     launchtime = [ x['launchtime'] for x in hostsFromProvider if str(x['id']) == str(host['name']) ][0]
-    uptime = str((now - launchtime).total_seconds())
+    uptime = str(int((now - launchtime).total_seconds()))
     z.host_update_uptime(hostid=host['hostid'],uptime=uptime)
 
 
