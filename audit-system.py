@@ -39,21 +39,22 @@ notregisteredInstancesFromFile = []
 if os.path.isfile(NOTREGISTERED_INSTANCES_FILE):
     notregisteredInstancesFromFile = filter(lambda x: x != '',(open(str(NOTREGISTERED_INSTANCES_FILE),"r")).read().split('\n'))
 
-time2minutes = timedelta(minutes=4)
+time6minutes = timedelta(minutes=6)
 now = datetime.utcnow()
 hostsFromProvider = []
 stoppedHostsFromProvider = []
 terminatedHostsFromProvider = []
 users = z.getUsers()
 userNotRegistered = []
-print users
+
 f = open(str(STOPPED_INSTANCES_FILE),"w")
 for driver in drivers:
     for node in driver.list_nodes():
         owner = node.extra['tags']['owner']
         if owner in users:
             launchtime = datetime.strptime(node.extra['launch_time'],'%Y-%m-%dT%H:%M:%S.%fZ')
-            if now - launchtime > time2minutes:
+            print node.id + " " + node.extra['launch_time'] + " - " + str(launchtime)
+            if now - launchtime > time6minutes:
                 if 'zabbixignore' in node.extra['tags'] and node.extra['tags']['zabbixignore'] in ['true', 'True']:
                     continue
                 if node.extra['status'] not in ['terminated', 'shutting-down']:
