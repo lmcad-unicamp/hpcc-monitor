@@ -2,6 +2,7 @@ import logging
 import os
 import pyzabbix
 from awsapi import getpricing,gettype,getfamily
+from datetime import datetime,timedelta
 import inspect
 
 home = os.path.dirname(os.path.realpath(__file__))
@@ -45,6 +46,12 @@ def getUserID(username):
         if user['alias'] == username:
             return str(user['userid'])
     raise NotFoudException("[ZAPI] USER DOES NOT EXIST: " + str(username))
+
+def getUsers():
+    users = []
+    for user in zapi.user.get():
+        users.append(user['alias'])
+    return users
 
 def getUserEmail(username, selectMedias=None):
     for user in zapi.user.get(selectMedias=['mediatypeid','sendto']):
@@ -164,6 +171,7 @@ def host_user_association(user=None, hostname=None, hostid=None):
         groupsFromHost = zapi.hostgroup.get(hostids=hostid, output=["groupsid"])
     except NotFoudException as e:
         logger.error(e)
+
     else:
         if groupOfUser not in [x['groupid'] for x in groupsFromHost]:
             groupsFromHost.append({"groupid": str(groupOfUser)})

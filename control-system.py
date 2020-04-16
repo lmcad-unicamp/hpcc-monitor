@@ -1,6 +1,7 @@
 import logging
 import os
 import zapi as z
+from sendemail import usernotfound_email
 from libcloud.compute.types import Provider
 from libcloud.compute.providers import get_driver
 from datetime import datetime,timedelta
@@ -20,6 +21,7 @@ logger.addHandler(ch)
 ACCESS_ID = (open(home+"/private/aws_access_key", "r")).read()[:-1]
 SECRET_KEY = (open(home+"/private/aws_secret_access_key", "r")).read()[:-1]
 STOPPED_INSTANCES_FILE = home+"/files/stopped-instances.hosts"
+NOTREGISTERED_USERS_FILE = home+"/files/notregistered-users.hosts"
 
 stoppedInstancesFromFile = []
 if os.path.isfile(STOPPED_INSTANCES_FILE):
@@ -33,6 +35,7 @@ cls = get_driver(Provider.EC2)
 drivers = []
 drivers.append(cls(ACCESS_ID, SECRET_KEY, region="us-east-2"))
 
+z.host_user_association(user='josue',hostname='i-0ed3e3b059a6e436a')
 
 hostsFromProvider = []
 for driver in drivers:
@@ -68,15 +71,46 @@ for host in hostsFromZabbix:
     z.host_update_price(hostid=host['hostid'])
 
 ##UPDATE uptime
-now = datetime.utcnow()
-for host in hostsFromZabbix:
-    launchtime = [ x['launchtime'] for x in hostsFromProvider if str(x['id']) == str(host['name']) ][0]
-    uptime = str(int((now - launchtime).total_seconds()))
-    z.host_update_uptime(hostid=host['hostid'],uptime=uptime)
+#now = datetime.utcnow()
+#for host in hostsFromZabbix:
+#    launchtime = [ x['launchtime'] for x in hostsFromProvider if str(x['id']) == str(host['name']) ][0]
+#    uptime = str(int((now - launchtime).total_seconds()))
+#    z.host_update_uptime(hostid=host['hostid'],uptime=uptime)
 
 
 ##ASSOCIATE USER AND HOST
 for host in hostsFromZabbix:
     for hostProvider in hostsFromProvider:
         if host['name'] == hostProvider['id']:
-            z.host_user_association(user=hostProvider['owner'],hostname=host['name'])
+            user = hostProvider['owner']
+            try:
+                z.getUserID(user)
+            except z.NotFoudException as e:
+                notregisteredUsersFromFile = []
+                if os.path.isfile(NOTREGISTERED_USERS_FILE):
+                    notregisteredUsersFromFile = filter(lambda x: x != '',(open(str(NOTREGISTERED_USERS_FILE),"r")).read().split('\n'))
+                notregisteredUsers = {}
+                for notregistered in [ x.split(',') for x in notregisteredUsersFromFile]:
+                    notregisteredUsers[notregistered[0]] = datetime.strptime(notregistered[1],'%Y-%m-%d %H:%M:%S.%f')
+
+                newNotregisteredUsers = []
+                time10minutes = timedelta(minutes=1)
+                now = datetime.utcnow()
+
+                if user not in [ x for x in notregisteredUsers.keys()] or now - notregisteredUsers[user] > time10minutes:
+                    newNotregisteredUsers.append(str(user)+','+str(datetime.utcnow()))
+                    try:
+                        logger.info("[CONTROL] [NOT REGISTERED] SENDING AN EMAIL TO ADMINS")
+                        usernotfound_email(z.getAdminsEmail(),user)
+                    except (z.NotFoudException,KeyError) as f:
+                        logger.error("[CONTROL] [NOT REGISTERED] COULD NOT SEND EMAIL")
+                        logger.error(f)
+                else:
+                    newNotregisteredUsers.append(str(user)+','+str(notregisteredUsers[user]))
+
+                f = open(str(NOTREGISTERED_USERS_FILE),"w")
+                for notregistered in newNotregisteredUsers:
+                    f.write(str(notregistered)+'\n')
+                f.close()
+            else:
+                z.host_user_association(user=user,hostname=host['name'])

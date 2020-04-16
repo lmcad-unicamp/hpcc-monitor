@@ -8,7 +8,6 @@ from libcloud.compute.providers import get_driver
 from datetime import datetime,timedelta
 
 home = os.path.dirname(os.path.realpath(__file__))
-
 logger = logging.getLogger(__file__)
 logger.setLevel(logging.INFO)
 fh = logging.FileHandler(home+"/log/audit.log")
@@ -26,6 +25,7 @@ NOTREGISTERED_INSTANCES_FILE = home+"/files/notregistered-instances.hosts"
 
 cls = get_driver(Provider.EC2)
 drivers = []
+drivers.append(cls(ACCESS_ID, SECRET_KEY, region="us-east-1"))
 drivers.append(cls(ACCESS_ID, SECRET_KEY, region="us-east-2"))
 
 stoppedInstancesFromFile = []
@@ -44,22 +44,25 @@ now = datetime.utcnow()
 hostsFromProvider = []
 stoppedHostsFromProvider = []
 terminatedHostsFromProvider = []
+users = z.getUsers()
+userNotRegistered = []
+print users
 f = open(str(STOPPED_INSTANCES_FILE),"w")
 for driver in drivers:
     for node in driver.list_nodes():
+        owner = node.extra['tags']['owner']
+        if owner in users:
             launchtime = datetime.strptime(node.extra['launch_time'],'%Y-%m-%dT%H:%M:%S.%fZ')
             if now - launchtime > time2minutes:
                 if 'zabbixignore' in node.extra['tags'] and node.extra['tags']['zabbixignore'] in ['true', 'True']:
                     continue
                 if node.extra['status'] not in ['terminated', 'shutting-down']:
-                    try:
-                        hostsFromProvider.append({'id':node.id, 'owner':node.extra['tags']['owner']})
-                    except:
-                        #TIRAR ISSO
-                        hostsFromProvider.append({'id':node.id, 'owner':'william'})
+                    hostsFromProvider.append({'id':node.id, 'owner':owner})
                 if node.extra['status'] in ['stopped', 'stopping']:
                     stoppedHostsFromProvider.append(node.id)
                     f.write(str(node.id)+','+str(node.extra['launch_time'])+'\n')
+        elif owner not in userNotRegistered:
+            userNotRegistered.append(owner)
 f.close()
 
 hostsFromZabbix = z.zapi.host.get(output = ['name'], filter={'status':'0'})
@@ -111,10 +114,10 @@ for host in hostsFromProvider:
                 useremail = z.getUserEmail(host['owner'],selectMedias=[])
                 emails = z.getAdminsEmail()
                 emails.append(useremail)
-                logger.info("[AUDIT] [NOT REGISTERED] I AM SENDING AN EMAIL TO ADMINS AND " + host['owner'])
+                logger.info("[AUDIT] [NOT REGISTERED] SENDING AN EMAIL TO ADMINS AND " + host['owner'])
                 alert_email(emails,host['id'])
             except (NotFoudException,KeyError) as e:
-                logger.error("[AUDIT] [NOT REGISTERED] I COULD NOT SEND EMAIL")
+                logger.error("[AUDIT] [NOT REGISTERED] COULD NOT SEND EMAIL")
                 logger.error(e)
         else:
             newNotregisteredInstances.append(str(host['id'])+','+str(notregisteredInstances[host['id']]))
