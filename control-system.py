@@ -94,10 +94,10 @@ for host in hostsFromZabbix:
                     notregisteredUsers[notregistered[0]] = datetime.strptime(notregistered[1],'%Y-%m-%d %H:%M:%S.%f')
 
                 newNotregisteredUsers = []
-                time10minutes = timedelta(minutes=1)
+                time30minutes = timedelta(minutes=30)
                 now = datetime.utcnow()
 
-                if user not in [ x for x in notregisteredUsers.keys()] or now - notregisteredUsers[user] > time10minutes:
+                if user not in [ x for x in notregisteredUsers.keys()] or now - notregisteredUsers[user] > time30minutes:
                     newNotregisteredUsers.append(str(user)+','+str(datetime.utcnow()))
                     try:
                         logger.info("[CONTROL] [NOT REGISTERED] SENDING AN EMAIL TO ADMINS")
