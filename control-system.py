@@ -35,20 +35,16 @@ cls = get_driver(Provider.EC2)
 drivers = []
 drivers.append(cls(ACCESS_ID, SECRET_KEY, region="us-east-2"))
 
-z.host_user_association(user='josue',hostname='i-0ed3e3b059a6e436a')
-
+users = z.getUsers()
 hostsFromProvider = []
 for driver in drivers:
     for node in driver.list_nodes():
+        owner = node.extra['tags']['owner']
+        if owner in users:
             if 'zabbixignore' in node.extra['tags'] and node.extra['tags']['zabbixignore'] in ['true','True']:
                 continue
             if node.extra['status'] not in ['terminated', 'shutting-down']:
-                try:
-                    hostsFromProvider.append({'id':node.id, 'owner':node.extra['tags']['owner'], 'launchtime':datetime.strptime(node.extra['launch_time'],'%Y-%m-%dT%H:%M:%S.%fZ')})
-                except:
-                    #TIRAR ISSO
-                    hostsFromProvider.append({'id':node.id, 'owner':'william', 'launchtime':datetime.strptime(node.extra['launch_time'],'%Y-%m-%dT%H:%M:%S.%fZ')})
-
+                hostsFromProvider.append({'id':node.id, 'owner':owner, 'launchtime':datetime.strptime(node.extra['launch_time'],'%Y-%m-%dT%H:%M:%S.%fZ')})
 
 hostsFromZabbix = z.zapi.host.get(output = ['name'], filter={'status':'0'})
 try:
@@ -61,14 +57,6 @@ for host in hostsFromZabbix:
     if host['name'] not in [ x['id'] for x in hostsFromProvider]:
         z.host_disable(hostid=host['hostid'])
         hostsFromZabbix.remove(host)
-
-##DETECT CHANGED INSTANCE TYPE
-for host in hostsFromZabbix:
-    z.host_update_type(hostid=host['hostid'])
-
-##DETECT CHANGED PRICES
-for host in hostsFromZabbix:
-    z.host_update_price(hostid=host['hostid'])
 
 ##UPDATE uptime
 #now = datetime.utcnow()
@@ -114,3 +102,12 @@ for host in hostsFromZabbix:
                 f.close()
             else:
                 z.host_user_association(user=user,hostname=host['name'])
+
+
+##DETECT CHANGED INSTANCE TYPE
+for host in hostsFromZabbix:
+    z.host_update_type(hostid=host['hostid'])
+
+##DETECT CHANGED PRICES
+for host in hostsFromZabbix:
+    z.host_update_price(hostid=host['hostid'])

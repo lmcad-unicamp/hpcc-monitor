@@ -202,7 +202,6 @@ def host_update_price(hostname=None, hostid=None):
             flagprice = True
             value = macro['value']
             if float(value) != float(hostprice):
-                os.system("zabbix_sender -z "+str(IPSERVER)+" -s "+str(hostname)+" -k cloud.price -o "+str(hostprice))
                 flagprice = False
                 macro['value'] = hostprice
                 logger.info("[PRICING] PRICE OF "+str(hostname)+" UPDATED FROM "+str(value)+" TO "+str(hostprice))
@@ -215,6 +214,7 @@ def host_update_price(hostname=None, hostid=None):
 
     if not flagprice:
         try:
+            os.system("zabbix_sender -z "+str(IPSERVER)+" -s "+str(hostname)+" -k cloud.price -o "+str(hostprice))
             zapi.host.update(hostid=getHostID(hostname), macros=macros)
         except NotFoudException as e:
             logger.error(e)
