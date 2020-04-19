@@ -211,7 +211,7 @@ def host_update_price(hostname=None, hostid=None):
         macro = {'macro':'{$PRICE}', 'value':str(hostprice)}
         macros.append(macro)
         logger.info("[PRICING] PRICE OF "+str(hostname)+" ADDED COSTING "+str(hostprice))
-
+    
     if not flagprice:
         try:
             os.system("zabbix_sender -z "+str(IPSERVER)+" -s "+str(hostname)+" -k cloud.price -o "+str(hostprice))
