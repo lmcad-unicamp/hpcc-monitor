@@ -53,7 +53,6 @@ for driver in drivers:
         owner = node.extra['tags']['owner']
         if owner in users:
             launchtime = datetime.strptime(node.extra['launch_time'],'%Y-%m-%dT%H:%M:%S.%fZ')
-            print node.id + " " + node.extra['launch_time'] + " - " + str(launchtime)
             if now - launchtime > time6minutes:
                 if 'zabbixignore' in node.extra['tags'] and node.extra['tags']['zabbixignore'] in ['true', 'True']:
                     continue
