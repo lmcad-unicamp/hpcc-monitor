@@ -28,6 +28,29 @@ families = {'generalpurpose': ['m4', 'm5nd', 'm5n', 'm5ad', 'm5a', 'm5d', 'm5', 
             'accelerated' : ['g3', 'g3s', 'g4dn', 'inf1', 'p2', 'p3dn', 'p3'],
             'storage' : ['h1', 'd2', 'i3en', 'i3']}
 
+
+def getInstances(region):
+    client = boto.client('ec2', region_name=region, aws_access_key_id=ACCESS_ID, aws_secret_access_key=SECRET_KEY)
+
+    instances = []
+    for instance in [i['Instances'][0] for i in client.describe_instances()['Reservations']]:
+        i = {}
+        tags = {item['Key']:item['Value'] for item in instance['Tags']}
+        i['owner'] = tags['owner']
+        if 'zabbixignore' in tags and tags['zabbixignore'] in ['true', 'True']:
+            i['zabbixignore'] = True
+        else:
+            i['zabbixignore'] = False
+        if 'SpotInstanceRequestId' in instance:
+            i['spot'] = instance['SpotInstanceRequestId']
+        else:
+            i['spot'] = None
+        i['id'] = instance['InstanceId']
+        i['launchtime'] = instance['LaunchTime'].replace(tzinfo=None)
+        i['state'] = instance['State']['Name']
+        instances.append(i)
+    return instances
+
 def getfamily(type):
     for key,value in families.iteritems():
         for t in value:

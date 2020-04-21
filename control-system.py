@@ -1,9 +1,9 @@
 import logging
 import os
 import zapi as z
+import boto3 as boto
+import awsapi as aws
 from sendemail import usernotfound_email
-from libcloud.compute.types import Provider
-from libcloud.compute.providers import get_driver
 from datetime import datetime,timedelta
 
 home = os.path.dirname(os.path.realpath(__file__))
@@ -30,21 +30,20 @@ stoppedInstances = {}
 for stopped in [ x.split(',') for x in stoppedInstancesFromFile]:
     stoppedInstances[stopped[0]] = datetime.strptime(stopped[1],'%Y-%m-%dT%H:%M:%S.%fZ')
 
-
-cls = get_driver(Provider.EC2)
 drivers = []
-drivers.append(cls(ACCESS_ID, SECRET_KEY, region="us-east-2"))
+drivers.append(aws.getInstances('us-east-1'))
+drivers.append(aws.getInstances('us-east-2'))
 
 users = z.getUsers()
+
 hostsFromProvider = []
 for driver in drivers:
-    for node in driver.list_nodes():
-        owner = node.extra['tags']['owner']
-        if owner in users:
-            if 'zabbixignore' in node.extra['tags'] and node.extra['tags']['zabbixignore'] in ['true','True']:
+    for node in driver:
+        if node['owner'] in users:
+            if node['zabbixignore']:
                 continue
-            if node.extra['status'] not in ['terminated', 'shutting-down']:
-                hostsFromProvider.append({'id':node.id, 'owner':owner, 'launchtime':datetime.strptime(node.extra['launch_time'],'%Y-%m-%dT%H:%M:%S.%fZ')})
+            if node['state'] not in ['terminated', 'shutting-down']:
+                hostsFromProvider.append({'id':node['id'], 'owner':node['owner'], 'launchtime':node['launchtime']})
 
 hostsFromZabbix = z.zapi.host.get(output = ['name'], filter={'status':'0'})
 try:

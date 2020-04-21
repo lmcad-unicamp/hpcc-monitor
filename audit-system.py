@@ -1,10 +1,9 @@
 import logging
 import os
 import zapi as z
+import awsapi as aws
 from zapi import NotFoudException
 from sendemail import alert_email
-from libcloud.compute.types import Provider
-from libcloud.compute.providers import get_driver
 from datetime import datetime,timedelta
 
 home = os.path.dirname(os.path.realpath(__file__))
@@ -23,11 +22,6 @@ SECRET_KEY = (open(home+"/private/aws_secret_access_key", "r")).read()[:-1]
 STOPPED_INSTANCES_FILE = home+"/files/stopped-instances.hosts"
 NOTREGISTERED_INSTANCES_FILE = home+"/files/notregistered-instances.hosts"
 
-cls = get_driver(Provider.EC2)
-drivers = []
-drivers.append(cls(ACCESS_ID, SECRET_KEY, region="us-east-1"))
-drivers.append(cls(ACCESS_ID, SECRET_KEY, region="us-east-2"))
-
 stoppedInstancesFromFile = []
 if os.path.isfile(STOPPED_INSTANCES_FILE):
     stoppedInstancesFromFile = filter(lambda x: x != '',(open(str(STOPPED_INSTANCES_FILE),"r")).read().split('\n'))
@@ -39,6 +33,13 @@ notregisteredInstancesFromFile = []
 if os.path.isfile(NOTREGISTERED_INSTANCES_FILE):
     notregisteredInstancesFromFile = filter(lambda x: x != '',(open(str(NOTREGISTERED_INSTANCES_FILE),"r")).read().split('\n'))
 
+drivers = []
+drivers.append(aws.getInstances('us-east-1'))
+drivers.append(aws.getInstances('us-east-2'))
+
+users = z.getUsers()
+
+
 time6minutes = timedelta(minutes=6)
 now = datetime.utcnow()
 hostsFromProvider = []
@@ -49,20 +50,18 @@ userNotRegistered = []
 
 f = open(str(STOPPED_INSTANCES_FILE),"w")
 for driver in drivers:
-    for node in driver.list_nodes():
-        owner = node.extra['tags']['owner']
-        if owner in users:
-            launchtime = datetime.strptime(node.extra['launch_time'],'%Y-%m-%dT%H:%M:%S.%fZ')
-            if now - launchtime > time6minutes:
-                if 'zabbixignore' in node.extra['tags'] and node.extra['tags']['zabbixignore'] in ['true', 'True']:
+    for node in driver:
+        if node['owner'] in users:
+            if now - node['launchtime'] > time6minutes:
+                if node['zabbixignore']:
                     continue
-                if node.extra['status'] not in ['terminated', 'shutting-down']:
-                    hostsFromProvider.append({'id':node.id, 'owner':owner})
-                if node.extra['status'] in ['stopped', 'stopping']:
-                    stoppedHostsFromProvider.append(node.id)
-                    f.write(str(node.id)+','+str(node.extra['launch_time'])+'\n')
-        elif owner not in userNotRegistered:
-            userNotRegistered.append(owner)
+                if node['state'] not in ['terminated', 'shutting-down']:
+                    hostsFromProvider.append({'id':node['id'], 'owner':node['owner']})
+                if node['state'] in ['stopped', 'stopping']:
+                    stoppedHostsFromProvider.append(node['id'])
+                    f.write(str(node['id'])+','+str(node['launchtime'])+'\n')
+        elif node['owner'] not in userNotRegistered:
+            userNotRegistered.append(node['owner'])
 f.close()
 
 hostsFromZabbix = z.zapi.host.get(output = ['name'], filter={'status':'0'})
@@ -70,7 +69,6 @@ try:
     hostsFromZabbix.remove({u'hostid': u'10084', u'name': u'Zabbix server'})
 except:
     pass
-
 
 ##DISABLE TRIGGERS FROM STOPPED INSTANCES
 for stoppedHost in stoppedHostsFromProvider[:]:
