@@ -36,7 +36,6 @@ if os.path.isfile(NOTREGISTERED_INSTANCES_FILE):
 drivers = []
 drivers.append(aws.getInstances('us-east-1'))
 drivers.append(aws.getInstances('us-east-2'))
-
 users = z.getUsers()
 
 
