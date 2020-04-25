@@ -27,7 +27,7 @@ if os.path.isfile(STOPPED_INSTANCES_FILE):
     stoppedInstancesFromFile = filter(lambda x: x != '',(open(str(STOPPED_INSTANCES_FILE),"r")).read().split('\n'))
 stoppedInstances = {}
 for stopped in [ x.split(',') for x in stoppedInstancesFromFile]:
-    stoppedInstances[stopped[0]] = datetime.strptime(stopped[1],'%Y-%m-%dT%H:%M:%S.%fZ')
+    stoppedInstances[stopped[0]] = datetime.strptime(stopped[1],'%Y-%m-%d %H:%M:%S')
 
 notregisteredInstancesFromFile = []
 if os.path.isfile(NOTREGISTERED_INSTANCES_FILE):
@@ -95,7 +95,7 @@ for stoppedHost in stoppedInstancesFromFile:
 ##DETECT NEW HOSTS NOT REGISTERED
 notregisteredInstances = {}
 for notregistered in [ x.split(',') for x in notregisteredInstancesFromFile]:
-    notregisteredInstances[notregistered[0]] = datetime.strptime(notregistered[1],'%Y-%m-%d %H:%M:%S.%f')
+    notregisteredInstances[notregistered[0]] = datetime.strptime(notregistered[1],'%Y-%m-%d %H:%M:%S')
 
 
 newNotregisteredInstances = []

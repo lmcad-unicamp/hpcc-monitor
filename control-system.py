@@ -28,7 +28,7 @@ if os.path.isfile(STOPPED_INSTANCES_FILE):
     stoppedInstancesFromFile = filter(lambda x: x != '',(open(str(STOPPED_INSTANCES_FILE),"r")).read().split('\n'))
 stoppedInstances = {}
 for stopped in [ x.split(',') for x in stoppedInstancesFromFile]:
-    stoppedInstances[stopped[0]] = datetime.strptime(stopped[1],'%Y-%m-%dT%H:%M:%S.%fZ')
+    stoppedInstances[stopped[0]] = datetime.strptime(stopped[1],'%Y-%m-%d %H:%M:%S')
 
 drivers = []
 drivers.append(aws.getInstances('us-east-1'))
