@@ -31,8 +31,6 @@ def getHostsIDs(hostnames):
     for host in zapi.host.get():
         if host['name'] in hostnames:
             hosts.append(host['hostid'])
-    if not hosts:
-        raise NotFoudException("[ZAPI] HOST DOES NOT EXIST: " + str(hostnames))
     return hosts
 
 def getHostname(hostid):
@@ -211,7 +209,7 @@ def host_update_price(hostname=None, hostid=None):
         macro = {'macro':'{$PRICE}', 'value':str(hostprice)}
         macros.append(macro)
         logger.info("[PRICING] PRICE OF "+str(hostname)+" ADDED COSTING "+str(hostprice))
-    
+
     if not flagprice:
         try:
             os.system("zabbix_sender -z "+str(IPSERVER)+" -s "+str(hostname)+" -k cloud.price -o "+str(hostprice))

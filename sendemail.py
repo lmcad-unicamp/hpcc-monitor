@@ -31,8 +31,8 @@ def registered_email(email, username):
     msg = MIMEText(message)
     msg['Subject'] = "Welcome to Zabbix monitoring tool"
     msg['From'] = EMAIL_USER
-    msg['To'] = ", ".join(emails)
-    s.sendmail(EMAIL_USER, emails, msg.as_string())
+    msg['To'] = ", ".join(email)
+    s.sendmail(EMAIL_USER, email, msg.as_string())
     s.close()
 
 def usernotfound_email(emails, host):

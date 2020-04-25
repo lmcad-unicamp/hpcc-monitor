@@ -64,13 +64,13 @@ try:
     rights.append({'id':hostgroupid, 'permission':'2'})
     z.zapi.usergroup.update(usrgrpid=14, rights=rights)
 except z.pyzabbix.ZabbixAPIException as e:
-    print e
+    print(e)
     exit(1)
 
 try:
     z.zapi.user.create(alias=user_name, name=name, surname=surname, passwd=user_password, usrgrps=[{'usrgrpid':'14'}], user_medias=[{'mediatypeid':'1', 'sendto':user_email, 'active':0, 'severity':63, 'period':'1-7,00:00-24:00'}])
 except z.pyzabbix.ZabbixAPIException as e:
-    print e
+    print(e)
     exit(1)
 
 try:
@@ -112,7 +112,7 @@ try:
                             recovery_operations = [{'operationtype': '11', 'opmessage': {'mediatypeid': '1', 'default_msg': '1'}}]
                             )
 except z.pyzabbix.ZabbixAPIException as e:
-    print e
+    print(e)
 
 try:
     z.zapi.action.create(name=str(user_name).upper()+': GPU stopped sending data',
@@ -153,7 +153,7 @@ try:
                             recovery_operations = [{'operationtype': '11', 'opmessage': {'mediatypeid': '1', 'default_msg': '1'}}]
                             )
 except z.pyzabbix.ZabbixAPIException as e:
-    print e
+    print(e)
 
 
 try:
@@ -195,6 +195,6 @@ try:
                             recovery_operations = [{'operationtype': '11', 'opmessage': {'mediatypeid': '1', 'default_msg': '1'}}]
                             )
 except z.pyzabbix.ZabbixAPIException as e:
-    print e
+    print(e)
 
 registered_email(user_email, user_name)

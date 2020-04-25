@@ -20,15 +20,7 @@ logger.addHandler(ch)
 
 ACCESS_ID = (open(home+"/private/aws_access_key", "r")).read()[:-1]
 SECRET_KEY = (open(home+"/private/aws_secret_access_key", "r")).read()[:-1]
-STOPPED_INSTANCES_FILE = home+"/files/stopped-instances.hosts"
 NOTREGISTERED_USERS_FILE = home+"/files/notregistered-users.hosts"
-
-stoppedInstancesFromFile = []
-if os.path.isfile(STOPPED_INSTANCES_FILE):
-    stoppedInstancesFromFile = filter(lambda x: x != '',(open(str(STOPPED_INSTANCES_FILE),"r")).read().split('\n'))
-stoppedInstances = {}
-for stopped in [ x.split(',') for x in stoppedInstancesFromFile]:
-    stoppedInstances[stopped[0]] = datetime.strptime(stopped[1],'%Y-%m-%d %H:%M:%S')
 
 drivers = []
 drivers.append(aws.getInstances('us-east-1'))
@@ -42,7 +34,7 @@ for driver in drivers:
         if node['owner'] in users:
             if node['zabbixignore']:
                 continue
-            if node['state'] not in ['terminated', 'shutting-down']:
+            if node['state'] not in ['terminated', 'shutting-down', 'stopped']:
                 hostsFromProvider.append({'id':node['id'], 'owner':node['owner'], 'launchtime':node['launchtime']})
 
 hostsFromZabbix = z.zapi.host.get(output = ['name'], filter={'status':'0'})

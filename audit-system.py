@@ -36,8 +36,6 @@ if os.path.isfile(NOTREGISTERED_INSTANCES_FILE):
 drivers = []
 drivers.append(aws.getInstances('us-east-1'))
 drivers.append(aws.getInstances('us-east-2'))
-users = z.getUsers()
-
 
 time6minutes = timedelta(minutes=6)
 now = datetime.utcnow()
@@ -54,14 +52,15 @@ for driver in drivers:
             if now - node['launchtime'] > time6minutes:
                 if node['zabbixignore']:
                     continue
-                if node['state'] not in ['terminated', 'shutting-down']:
-                    hostsFromProvider.append({'id':node['id'], 'owner':node['owner']})
                 if node['state'] in ['stopped', 'stopping']:
                     stoppedHostsFromProvider.append(node['id'])
                     f.write(str(node['id'])+','+str(node['launchtime'])+'\n')
+                elif node['state'] not in ['terminated', 'shutting-down']:
+                    hostsFromProvider.append({'id':node['id'], 'owner':node['owner']})
         elif node['owner'] not in userNotRegistered:
             userNotRegistered.append(node['owner'])
 f.close()
+
 
 hostsFromZabbix = z.zapi.host.get(output = ['name'], filter={'status':'0'})
 try:
@@ -112,7 +111,7 @@ for host in hostsFromProvider:
                 emails = z.getAdminsEmail()
                 emails.append(useremail)
                 logger.info("[AUDIT] [NOT REGISTERED] SENDING AN EMAIL TO ADMINS AND " + host['owner'])
-                alert_email(emails,host['id'])
+                #alert_email(emails,host['id'])
             except (NotFoudException,KeyError) as e:
                 logger.error("[AUDIT] [NOT REGISTERED] COULD NOT SEND EMAIL")
                 logger.error(e)
