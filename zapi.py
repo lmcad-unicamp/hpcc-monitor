@@ -107,7 +107,6 @@ def get_hosts(filter=None,hostsid=None,selectTriggers=None):
     try:
         if hostsid == []:
             return []
-        print filter
         return zapi.host.get(hostsid=hostsid, output = ['name'], filter=filter, selectTriggers=selectTriggers)
     except (pyzabbix.ZabbixAPIException,NotFoudException) as e:
         logger.error(e)

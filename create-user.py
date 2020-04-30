@@ -1,6 +1,7 @@
 import zapi as z
 from sendemail import registered_email
 import getpass
+import MySQLdb
 
 masterkeep = True
 while masterkeep:
@@ -38,18 +39,26 @@ while masterkeep:
 
     keep = True
     while keep:
-        user_email = raw_input('\t\tEnter the email email: ')
+        user_email = raw_input('\t\tEnter the email: ')
         keep = False
         right = raw_input('\t\t\tIs this email right? '+str(user_email)+' (N)o or any other charactere: ')
         if right == 'N':
             keep = True
 
+    keep = True
+    while keep:
+        quota = raw_input('\t\tEnter the quota: ')
+        keep = False
+        right = raw_input('\t\t\tIs this quota right? '+str(quota)+' (N)o or any other charactere: ')
+        if right == 'N':
+            keep = True
 
     print
     print('\t'+str(user_name))
     print('\t'+str(name))
     print('\t'+str(surname))
     print('\t'+str(user_email))
+    print('\t'+str(quota))
     masterkeep=False
     right = raw_input('\t\tIs everything right? (N)o or any other charactere: ')
     right2 = raw_input('\t\tRemember, username must be the same as the provider')
@@ -72,6 +81,11 @@ try:
 except z.pyzabbix.ZabbixAPIException as e:
     print(e)
     exit(1)
+
+try:
+    z.zapi.usermacro.createglobal(macro="{$QUOTA_"+str(user_name).upper()+"}", value=str(quota))
+except z.pyzabbix.ZabbixAPIException as e:
+    print(e)
 
 try:
     z.zapi.action.create(name=str(user_name).upper()+': GPU driver missing in host',
@@ -196,5 +210,12 @@ try:
                             )
 except z.pyzabbix.ZabbixAPIException as e:
     print(e)
+
+con = MySQLdb.connect(DBSERVER, DBUSER, DBPASSWORD)
+con.select_db('db_quota_manager')
+cursor = con.cursor()
+cursor.execute("INSERT INTO User_Wastage(UserName,Quota) VALUES(\""+str(user_name)+"\","+str(float(quota))+")")
+con.commit()
+
 
 registered_email(user_email, user_name)

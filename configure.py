@@ -43,12 +43,38 @@ while masterkeep:
         if right == 'N':
             keep = True
 
-    print
+    keep = True
+    while keep:
+        db_server = raw_input('\t\tEnter the database server IP: ')
+        keep = False
+        right = raw_input('\t\t\tIs this database server IP right? '+str(db_server)+' (N)o or any other charactere: ')
+        if right == 'N':
+            keep = True
+
+    keep = True
+    while keep:
+        db_user = raw_input('\t\tEnter the database server user: ')
+        keep = False
+        right = raw_input('\t\t\tIs this database server user right? '+str(db_user)+' (N)o or any other charactere: ')
+        if right == 'N':
+            keep = True
+
+    keep = True
+    while keep:
+        db_password = raw_input('\t\tEnter the database server password: ')
+        keep = False
+        right = raw_input('\t\t\tIs this database server password right? '+str(db_password)+' (N)o or any other charactere: ')
+        if right == 'N':
+            keep = True
+
     print('\t'+str(email_user))
     print('\t'+str(email_password))
     print('\t'+str(ip_server))
     print('\t'+str(zabbix_user))
     print('\t'+str(zabbix_password))
+    print('\t'+str(db_server))
+    print('\t'+str(db_user))
+    print('\t'+str(db_password))
     masterkeep=False
     right = raw_input('\t\tIs everything right? (N)o or any other charactere: ')
     if right == 'N':
@@ -68,11 +94,14 @@ try:
     print('\t'+str("Directory /private created"))
 except:
     pass
-(open('private/email_user','w')).write(email_user+'\n')
-(open('private/email_password','w')).write(email_password+'\n')
-(open('private/ip_server','w')).write(ip_server+'\n')
-(open('private/zabbix_user','w')).write(zabbix_user+'\n')
-(open('private/zabbix_password','w')).write(zabbix_password+'\n')
+(open('private/email_user','w')).write(email_user)
+(open('private/email_password','w')).write(email_password)
+(open('private/ip_server','w')).write(ip_server)
+(open('private/zabbix_user','w')).write(zabbix_user)
+(open('private/zabbix_password','w')).write(zabbix_password)
+(open('private/db_server','w')).write(db_server)
+(open('private/db_user','w')).write(db_user)
+(open('private/db_password','w')).write(db_password)
 
 print('\t'+str("Done!"))
 print('\t'+str("Now, insert your provider credentials"))
@@ -97,7 +126,6 @@ while keepmaster:
             if right == 'N':
                 keep = True
 
-        print
         print('\t'+str("Done!"))
         (open('private/aws_access_key','w')).write(aws_access_key+'\n')
         (open('private/aws_secret_access_key','w')).write(aws_secret_access_key+'\n')

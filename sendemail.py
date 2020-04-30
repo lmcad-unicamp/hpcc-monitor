@@ -3,8 +3,8 @@ import os
 from email.mime.text import MIMEText
 home=os.path.dirname(os.path.realpath(__file__))
 
-EMAIL_USER= (open(home+"/private/email_user", "r")).read()[:-1]
-EMAIL_PASSWORD= (open(home+"/private/email_password", "r")).read()[:-1]
+EMAIL_USER= (open(home+"/private/email_user", "r")).read().strip('\n')
+EMAIL_PASSWORD= (open(home+"/private/email_password", "r")).read().strip('\n')
 
 def alert_email(emails, host):
     s = smtplib.SMTP_SSL(host='smtp.gmail.com', port=465)

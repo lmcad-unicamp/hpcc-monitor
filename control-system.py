@@ -6,6 +6,7 @@ import awsapi as aws
 from sendemail import usernotfound_email
 from datetime import datetime,timedelta
 
+
 home = os.path.dirname(os.path.realpath(__file__))
 
 logger = logging.getLogger(str(__file__))
@@ -18,9 +19,9 @@ ch.setFormatter(formatter)
 logger.addHandler(fh)
 logger.addHandler(ch)
 
-ACCESS_ID = (open(home+"/private/aws_access_key", "r")).read()[:-1]
-SECRET_KEY = (open(home+"/private/aws_secret_access_key", "r")).read()[:-1]
-NOTREGISTERED_USERS_FILE = home+"/files/notregistered-users.hosts"
+ACCESS_ID = (open(home+"/private/aws_access_key", "r")).read().strip('\n')
+SECRET_KEY = (open(home+"/private/aws_secret_access_key", "r")).read().strip('\n')
+NOTREGISTERED_USERS_FILE = home+"/files/notregistered-users.users"
 
 drivers = []
 drivers.append(aws.getInstances('us-east-1'))
@@ -29,6 +30,7 @@ drivers.append(aws.getInstances('us-east-2'))
 users = z.getUsers()
 
 hostsFromProvider = []
+hostsFromProviderStopped = []
 for driver in drivers:
     for node in driver:
         if node['owner'] in users:
@@ -36,18 +38,20 @@ for driver in drivers:
                 continue
             if node['state'] not in ['terminated', 'shutting-down', 'stopped']:
                 hostsFromProvider.append({'id':node['id'], 'owner':node['owner'], 'launchtime':node['launchtime']})
+            elif node['state'] in ['stopped']:
+                hostsFromProviderStopped.append({'id':node['id']})
 
 hostsFromZabbix = z.zapi.host.get(output = ['name'], filter={'status':'0'})
-try:
-    hostsFromZabbix.remove({u'hostid': u'10084', u'name': u'Zabbix server'})
-except:
-    pass
+hostsFromZabbix = [x for x in hostsFromZabbix if not ("10084" == x.get('hostid'))]
 
-##DETECT TERMINATED INSTACES AND DISABLE HOSTS
+##DETECT TERMINATED INSTACES AND DISABLE HOSTS]
 for host in hostsFromZabbix:
-    if host['name'] not in [ x['id'] for x in hostsFromProvider]:
+    if host['name'] in [x['id'] for x in hostsFromProviderStopped]:
+        hostsFromZabbix.remove(host)
+    elif host['name'] not in [x['id'] for x in hostsFromProvider]:
         z.host_disable(hostid=host['hostid'])
         hostsFromZabbix.remove(host)
+
 
 ##UPDATE uptime
 #now = datetime.utcnow()
@@ -97,6 +101,7 @@ for host in hostsFromZabbix:
 
 ##DETECT CHANGED INSTANCE TYPE
 for host in hostsFromZabbix:
+    print(host)
     z.host_update_type(hostid=host['hostid'])
 
 ##DETECT CHANGED PRICES

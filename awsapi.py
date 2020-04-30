@@ -8,8 +8,8 @@ from datetime import datetime
 
 home=os.path.dirname(os.path.realpath(__file__))
 
-ACCESS_ID = (open(home+"/private/aws_access_key", "r")).read()[:-1]
-SECRET_KEY = (open(home+"/private/aws_secret_access_key", "r")).read()[:-1]
+ACCESS_ID = (open(home+"/private/aws_access_key", "r")).read().strip('\n')
+SECRET_KEY = (open(home+"/private/aws_secret_access_key", "r")).read().strip('\n')
 
 regions = {'us-east-2': "US East (Ohio)", 'us-east-1': "US East (N. Virginia)",
            'us-west-1': "US West (N. California)", 'us-west-2': "US West (Oregon)",
@@ -52,7 +52,7 @@ def getInstances(region):
     return instances
 
 def getfamily(type):
-    for key,value in families.iteritems():
+    for key,value in families.items():
         for t in value:
             if type.find(str(t)) != -1:
                 return key

@@ -17,8 +17,8 @@ ch.setFormatter(formatter)
 logger.addHandler(fh)
 logger.addHandler(ch)
 
-ACCESS_ID = (open(home+"/private/aws_access_key", "r")).read()[:-1]
-SECRET_KEY = (open(home+"/private/aws_secret_access_key", "r")).read()[:-1]
+ACCESS_ID = (open(home+"/private/aws_access_key", "r")).read().strip('\n')
+SECRET_KEY = (open(home+"/private/aws_secret_access_key", "r")).read().strip('\n')
 STOPPED_INSTANCES_FILE = home+"/files/stopped-instances.hosts"
 NOTREGISTERED_INSTANCES_FILE = home+"/files/notregistered-instances.hosts"
 
@@ -63,10 +63,7 @@ f.close()
 
 
 hostsFromZabbix = z.zapi.host.get(output = ['name'], filter={'status':'0'})
-try:
-    hostsFromZabbix.remove({u'hostid': u'10084', u'name': u'Zabbix server'})
-except:
-    pass
+hostsFromZabbix = [x for x in hostsFromZabbix if not ("10084" == x.get('hostid'))]
 
 ##DISABLE TRIGGERS FROM STOPPED INSTANCES
 for stoppedHost in stoppedHostsFromProvider[:]:
