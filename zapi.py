@@ -190,6 +190,10 @@ def host_update_price(hostname=None, hostid=None):
         logger.error("[ZAPI] I NEED A HOST ID OR NAME")
 
     hostprice = getpricing(hostname)
+    if not hostprice:
+        logger.error("[PRICING] COULD NOT FIND PRICE OF "+str(hostname))
+        return
+        
     macros = []
     flag = False
     flagprice = False

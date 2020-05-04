@@ -101,7 +101,6 @@ for host in hostsFromZabbix:
 
 ##DETECT CHANGED INSTANCE TYPE
 for host in hostsFromZabbix:
-    print(host)
     z.host_update_type(hostid=host['hostid'])
 
 ##DETECT CHANGED PRICES

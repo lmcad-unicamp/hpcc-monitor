@@ -1,3 +1,4 @@
 sudo apt-get update
-sudo apt install zabbix-agent python python-pip -y
-sudo -H pip install pyzabbix boto3 apache-libcloud mysqlclient
+sudo apt install zabbix-agent python3 python3-pip -y
+sudo apt-get install python3-dev libmysqlclient-dev
+sudo -H pip3 install pyzabbix boto3 apache-libcloud mysqlclient

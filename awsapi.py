@@ -196,7 +196,7 @@ def getpricing(instance_id, ondemand=True, verbose=False):
                         print("[PRICING] SOME ATTRIBUTE IS INCORRECT, THERE IS NO CONFIGURATION WITH THESE VALUES: "+instance_type+" "+availability_zone+" - "+operating_system+" "+license_model+" - "+preinstalled_sw+" - "+tenancy+" "+capacity_status+" - ")
                     instance_price = 1.0
                 elif ondemand:
-                    instance_price = eval(price["PriceList"][0])["terms"]["OnDemand"].values()[0]["priceDimensions"].values()[0]["pricePerUnit"]["USD"]
+                    instance_price = list(list(eval(price["PriceList"][0])["terms"]["OnDemand"].values())[0]["priceDimensions"].values())[0]["pricePerUnit"]["USD"]
                     if verbose:
                         print("ONDEMAND: "+instance_type+" "+availability_zone+" - "+operating_system+" "+license_model+" - "+preinstalled_sw+" - "+tenancy+" "+capacity_status+" - "+instance_price)
                 else:
@@ -205,7 +205,7 @@ def getpricing(instance_id, ondemand=True, verbose=False):
         except:
             pass
         else:
-            return instance_price
+            return float(instance_price)
 
 def gettype(instance_id, ondemand=True, verbose=False):
     for region in ['us-east-1', 'us-east-2']:
@@ -220,4 +220,4 @@ def gettype(instance_id, ondemand=True, verbose=False):
             pass
         else:
             instance_type = INSTANCE_INFO['Reservations'][0]['Instances'][0]['InstanceType']
-            return instance_type
+            return float(instance_type)
