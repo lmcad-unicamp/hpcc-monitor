@@ -7,9 +7,9 @@ masterkeep = True
 while masterkeep:
     keep = True
     while keep:
-        user_name = raw_input('\t\tEnter the user name: ')
+        user_name = input('\t\tEnter the user name: ')
         keep = False
-        right = raw_input('\t\t\tIs this username right? '+str(user_name)+' (N)o or any other charactere: ')
+        right = input('\t\t\tIs this username right? '+str(user_name)+' (N)o or any other charactere: ')
         if right == 'N':
             keep = True
 
@@ -17,39 +17,39 @@ while masterkeep:
     while keep:
         user_password = getpass.getpass('\t\tEnter a password: ')
         keep = False
-        right = raw_input('\t\t\tIs this password right? (N)o or any other charactere: ')
+        right = input('\t\t\tIs this password right? (N)o or any other charactere: ')
         if right == 'N':
             keep = True
 
     keep = True
     while keep:
-        name = raw_input('\t\tEnter the First Name: ')
+        name = input('\t\tEnter the First Name: ')
         keep = False
-        right = raw_input('\t\t\tIs this first name right? '+str(name)+' (N)o or any other charactere: ')
+        right = input('\t\t\tIs this first name right? '+str(name)+' (N)o or any other charactere: ')
         if right == 'N':
             keep = True
 
     keep = True
     while keep:
-        surname = raw_input('\t\tEnter the Surname: ')
+        surname = input('\t\tEnter the Surname: ')
         keep = False
-        right = raw_input('\t\t\tIs this surname right? '+str(surname)+' (N)o or any other charactere: ')
+        right = input('\t\t\tIs this surname right? '+str(surname)+' (N)o or any other charactere: ')
         if right == 'N':
             keep = True
 
     keep = True
     while keep:
-        user_email = raw_input('\t\tEnter the email: ')
+        user_email = input('\t\tEnter the email: ')
         keep = False
-        right = raw_input('\t\t\tIs this email right? '+str(user_email)+' (N)o or any other charactere: ')
+        right = input('\t\t\tIs this email right? '+str(user_email)+' (N)o or any other charactere: ')
         if right == 'N':
             keep = True
 
     keep = True
     while keep:
-        quota = raw_input('\t\tEnter the quota: ')
+        quota = input('\t\tEnter the quota: ')
         keep = False
-        right = raw_input('\t\t\tIs this quota right? '+str(quota)+' (N)o or any other charactere: ')
+        right = input('\t\t\tIs this quota right? '+str(quota)+' (N)o or any other charactere: ')
         if right == 'N':
             keep = True
 
@@ -60,8 +60,8 @@ while masterkeep:
     print('\t'+str(user_email))
     print('\t'+str(quota))
     masterkeep=False
-    right = raw_input('\t\tIs everything right? (N)o or any other charactere: ')
-    right2 = raw_input('\t\tRemember, username must be the same as the provider')
+    right = input('\t\tIs everything right? (N)o or any other charactere: ')
+    right2 = input('\t\tRemember, username must be the same as the provider')
     if right == 'N' or right == 'N':
         masterkeep = True
 

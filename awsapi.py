@@ -52,7 +52,7 @@ def getInstances(region):
     return instances
 
 def getfamily(type):
-    for key,value in families.items():
+    for key,value in list(families.items()):
         for t in value:
             if type.find(str(t)) != -1:
                 return key
@@ -109,19 +109,19 @@ def printPrices(price):
             + product["product"]["attributes"]["licenseModel"] + "      "
             + product["product"]["attributes"]["capacitystatus"] + " - " #sim
             + product["product"]["attributes"]["tenancy"] + " " #sim
-            + product["terms"]["OnDemand"].values()[0]["priceDimensions"].values()[0]["pricePerUnit"]["USD"] + " "
-            + product["terms"]["OnDemand"].values()[0]["priceDimensions"].values()[0]["unit"]
+            + list(product["terms"]["OnDemand"].values())[0]["priceDimensions"].values()[0]["pricePerUnit"]["USD"] + " "
+            + list(product["terms"]["OnDemand"].values())[0]["priceDimensions"].values()[0]["unit"]
             )
         if len(product["terms"].values()) > 1:
-            for i in range(len(product["terms"]["Reserved"].values())):
+            for i in range(len(list(product["terms"]["Reserved"].values()))):
                 pprint("                                "
-                + product["terms"]["Reserved"].values()[i]["termAttributes"]["LeaseContractLength"] + " "
-                + product["terms"]["Reserved"].values()[i]["termAttributes"]["OfferingClass"] + " "
-                + product["terms"]["Reserved"].values()[i]["termAttributes"]["PurchaseOption"])
-                for j in range(len(product["terms"]["Reserved"].values()[i]["priceDimensions"].values())):
+                + list(product["terms"]["Reserved"].values())[i]["termAttributes"]["LeaseContractLength"] + " "
+                + list(product["terms"]["Reserved"].values())[i]["termAttributes"]["OfferingClass"] + " "
+                + list(product["terms"]["Reserved"].values())[i]["termAttributes"]["PurchaseOption"])
+                for j in range(len(list(product["terms"]["Reserved"].values())[i]["priceDimensions"].values())):
                     pprint("                                                   "
-                    + product["terms"]["Reserved"].values()[i]["priceDimensions"].values()[j]["pricePerUnit"]["USD"] + " "
-                    + product["terms"]["Reserved"].values()[i]["priceDimensions"].values()[j]["unit"])
+                    + list(product["terms"]["Reserved"].values())[i]["priceDimensions"].values()[j]["pricePerUnit"]["USD"] + " "
+                    + list(product["terms"]["Reserved"].values())[i]["priceDimensions"].values()[j]["unit"])
 
 def getpricing(instance_id, ondemand=True, verbose=False):
     for region in ['us-east-1', 'us-east-2']:

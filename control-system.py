@@ -71,7 +71,7 @@ for host in hostsFromZabbix:
             except z.NotFoudException as e:
                 notregisteredUsersFromFile = []
                 if os.path.isfile(NOTREGISTERED_USERS_FILE):
-                    notregisteredUsersFromFile = filter(lambda x: x != '',(open(str(NOTREGISTERED_USERS_FILE),"r")).read().split('\n'))
+                    notregisteredUsersFromFile = (open(str(NOTREGISTERED_USERS_FILE),"r")).read().strip('\n')
                 notregisteredUsers = {}
                 for notregistered in [ x.split(',') for x in notregisteredUsersFromFile]:
                     notregisteredUsers[notregistered[0]] = datetime.strptime(notregistered[1],'%Y-%m-%d %H:%M:%S.%f')
@@ -80,7 +80,7 @@ for host in hostsFromZabbix:
                 time30minutes = timedelta(minutes=30)
                 now = datetime.utcnow()
 
-                if user not in [ x for x in notregisteredUsers.keys()] or now - notregisteredUsers[user] > time30minutes:
+                if user not in [ x for x in list(notregisteredUsers.keys())] or now - notregisteredUsers[user] > time30minutes:
                     newNotregisteredUsers.append(str(user)+','+str(datetime.utcnow()))
                     try:
                         logger.info("[CONTROL] [NOT REGISTERED] SENDING AN EMAIL TO ADMINS")

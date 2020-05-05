@@ -24,14 +24,14 @@ NOTREGISTERED_INSTANCES_FILE = home+"/files/notregistered-instances.hosts"
 
 stoppedInstancesFromFile = []
 if os.path.isfile(STOPPED_INSTANCES_FILE):
-    stoppedInstancesFromFile = filter(lambda x: x != '',(open(str(STOPPED_INSTANCES_FILE),"r")).read().split('\n'))
+    stoppedInstancesFromFile = (open(str(STOPPED_INSTANCES_FILE),"r")).read().strip('\n')
 stoppedInstances = {}
 for stopped in [ x.split(',') for x in stoppedInstancesFromFile]:
     stoppedInstances[stopped[0]] = datetime.strptime(stopped[1],'%Y-%m-%d %H:%M:%S')
 
 notregisteredInstancesFromFile = []
 if os.path.isfile(NOTREGISTERED_INSTANCES_FILE):
-    notregisteredInstancesFromFile = filter(lambda x: x != '',(open(str(NOTREGISTERED_INSTANCES_FILE),"r")).read().split('\n'))
+    notregisteredInstancesFromFile = (open(str(NOTREGISTERED_INSTANCES_FILE),"r")).read().strip('\n')
 
 drivers = []
 drivers.append(aws.getInstances('us-east-1'))
@@ -67,11 +67,11 @@ hostsFromZabbix = [x for x in hostsFromZabbix if not ("10084" == x.get('hostid')
 
 ##DISABLE TRIGGERS FROM STOPPED INSTANCES
 for stoppedHost in stoppedHostsFromProvider[:]:
-    if stoppedHost in [ x for x in stoppedInstances.keys()]:
+    if stoppedHost in [ x for x in list(stoppedInstances.keys())]:
         stoppedHostsFromProvider.remove(stoppedHost)
         del stoppedInstances[stoppedHost]
 stoppedHostsFromProvider = z.zapi.host.get(hostids=z.getHostsIDs(stoppedHostsFromProvider), selectTriggers=['triggerid', 'description', 'status'])
-stoppedInstancesFromFile = z.zapi.host.get(hostids=z.getHostsIDs([x for x in stoppedInstances.keys()]), selectTriggers=['triggerid', 'description', 'status'])
+stoppedInstancesFromFile = z.zapi.host.get(hostids=z.getHostsIDs([x for x in list(stoppedInstances.keys())]), selectTriggers=['triggerid', 'description', 'status'])
 
 
 for stoppedHost in stoppedHostsFromProvider:
@@ -100,7 +100,7 @@ now = datetime.utcnow()
 
 for host in hostsFromProvider:
     if host['id'] not in [ x['name'] for x in hostsFromZabbix]:
-        if host['id'] not in [ x for x in notregisteredInstances.keys()] or now - notregisteredInstances[host['id']] > time10minutes:
+        if host['id'] not in [ x for x in list(notregisteredInstances.keys())] or now - notregisteredInstances[host['id']] > time10minutes:
             newNotregisteredInstances.append(str(host['id'])+','+str(datetime.utcnow()))
             logger.info("[AUDIT] [NOT REGISTERED] Host ("+str(host['id'])+") has not been registered")
             try:
