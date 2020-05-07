@@ -8,9 +8,9 @@ import inspect
 home = os.path.dirname(os.path.realpath(__file__))
 logger = logging.getLogger(str(inspect.getouterframes(inspect.currentframe(), 2)[1][1]))
 
-IPSERVER= (open(home+"/private/ip_server", "r")).read()[:-1]
-ZABBIX_USER= (open(home+"/private/zabbix_user", "r")).read()[:-1]
-ZABBIX_PASSWORD= (open(home+"/private/zabbix_password", "r")).read()[:-1]
+IPSERVER= (open(home+"/private/ip_server", "r")).read().strip('\n')
+ZABBIX_USER= (open(home+"/private/zabbix_user", "r")).read().strip('\n')
+ZABBIX_PASSWORD= (open(home+"/private/zabbix_password", "r")).read().strip('\n')
 
 zapi = pyzabbix.ZabbixAPI("http://"+str(IPSERVER)+"/zabbix/api_jsonrpc.php")
 zapi.login(ZABBIX_USER, ZABBIX_PASSWORD)
@@ -193,7 +193,7 @@ def host_update_price(hostname=None, hostid=None):
     if not hostprice:
         logger.error("[PRICING] COULD NOT FIND PRICE OF "+str(hostname))
         return
-        
+
     macros = []
     flag = False
     flagprice = False
