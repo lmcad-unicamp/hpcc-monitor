@@ -6,7 +6,7 @@ First install packages:
 
 Then, configure with:
 
-	python configure.py
+	python3 configure.py
 
 You can use cron to execute Audit and Control Systems periodically
 
