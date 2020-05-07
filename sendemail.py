@@ -16,7 +16,10 @@ def alert_email(emails, host):
     msg = MIMEText(message)
     msg['Subject'] = "URGENT: there is a host unregistered"
     msg['From'] = EMAIL_USER
-    msg['To'] = ", ".join(emails)
+    if type(emails) is list:
+        msg['To'] = ", ".join(emails)
+    else:
+        msg['To'] = emails
     s.sendmail(EMAIL_USER, emails, msg.as_string())
     s.close()
 
@@ -31,7 +34,10 @@ def registered_email(email, username):
     msg = MIMEText(message)
     msg['Subject'] = "Welcome to Zabbix monitoring tool"
     msg['From'] = EMAIL_USER
-    msg['To'] = ", ".join(email)
+    if type(email) is list:
+        msg['To'] = ", ".join(email)
+    else:
+        msg['To'] = email
     s.sendmail(EMAIL_USER, email, msg.as_string())
     s.close()
 
@@ -45,6 +51,27 @@ def usernotfound_email(emails, host):
     msg = MIMEText(message)
     msg['Subject'] = "URGENT: there is an user unregistered"
     msg['From'] = EMAIL_USER
-    msg['To'] = ", ".join(emails)
+    if type(emails) is list:
+        msg['To'] = ", ".join(emails)
+    else:
+        msg['To'] = emails
     s.sendmail(EMAIL_USER, emails, msg.as_string())
+    s.close()
+
+def wastagequota(email, quota, wastage):
+    s = smtplib.SMTP_SSL(host='smtp.gmail.com', port=465)
+    s.ehlo()
+    s.login(EMAIL_USER, EMAIL_PASSWORD)
+    message = "You do not have more money to waste!\n\n"
+    message = message + "Your quota is USD " + str(quota) + " and you have wasted USD " + str("%.2f" % round(wastage, 2)) + "\n"
+    message = message + "You can ask more to admin"
+    msg = MIMEText(message)
+    msg['Subject'] = "URGENT: You do not have more money to waste!"
+    msg['From'] = EMAIL_USER
+    if type(email) is list:
+        msg['To'] = ", ".join(email)
+    else:
+        msg['To'] = email
+    print(msg)
+    s.sendmail(EMAIL_USER, email, msg.as_string())
     s.close()

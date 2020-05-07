@@ -108,9 +108,9 @@ for host in hostsFromProvider:
                 emails = z.getAdminsEmail()
                 emails.append(useremail)
                 logger.info("[AUDIT] [NOT REGISTERED] SENDING AN EMAIL TO ADMINS AND " + host['owner'])
-                #alert_email(emails,host['id'])
+                alert_email(emails,host['id'])
             except (NotFoudException,KeyError) as e:
-                logger.error("[AUDIT] [NOT REGISTERED] COULD NOT SEND EMAIL")
+                logger.error("[AUDIT] [NOT REGISTERED] COULD NOT SEND EMAIL TO ADMINS AND " + host['owner'])
                 logger.error(e)
         else:
             newNotregisteredInstances.append(str(host['id'])+','+str(notregisteredInstances[host['id']]))

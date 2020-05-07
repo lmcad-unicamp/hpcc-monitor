@@ -220,4 +220,4 @@ def gettype(instance_id, ondemand=True, verbose=False):
             pass
         else:
             instance_type = INSTANCE_INFO['Reservations'][0]['Instances'][0]['InstanceType']
-            return float(instance_type)
+            return str(instance_type)
