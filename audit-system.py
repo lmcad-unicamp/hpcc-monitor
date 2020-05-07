@@ -3,7 +3,7 @@ import os
 import zapi as z
 import awsapi as aws
 from zapi import NotFoudException
-from sendemail import alert_email
+from sendemail import notregistered_email,availablevolume_email
 from datetime import datetime,timedelta
 
 home = os.path.dirname(os.path.realpath(__file__))
@@ -21,44 +21,70 @@ ACCESS_ID = (open(home+"/private/aws_access_key", "r")).read().strip('\n')
 SECRET_KEY = (open(home+"/private/aws_secret_access_key", "r")).read().strip('\n')
 STOPPED_INSTANCES_FILE = home+"/files/stopped-instances.hosts"
 NOTREGISTERED_INSTANCES_FILE = home+"/files/notregistered-instances.hosts"
+AVAILABLE_VOLUMES_FILE = home+"/files/available-volumes.hosts"
 
 stoppedInstancesFromFile = []
 if os.path.isfile(STOPPED_INSTANCES_FILE):
-    stoppedInstancesFromFile = (open(str(STOPPED_INSTANCES_FILE),"r")).read().strip('\n')
+    stoppedInstancesFromFile = (open(str(STOPPED_INSTANCES_FILE),"r")).read().strip('\n').split('\n')
 stoppedInstances = {}
-for stopped in [ x.split(',') for x in stoppedInstancesFromFile]:
+for stopped in [ x.split(",") for x in stoppedInstancesFromFile if x]:
     stoppedInstances[stopped[0]] = datetime.strptime(stopped[1],'%Y-%m-%d %H:%M:%S')
 
 notregisteredInstancesFromFile = []
 if os.path.isfile(NOTREGISTERED_INSTANCES_FILE):
-    notregisteredInstancesFromFile = (open(str(NOTREGISTERED_INSTANCES_FILE),"r")).read().strip('\n')
+    notregisteredInstancesFromFile = (open(str(NOTREGISTERED_INSTANCES_FILE),"r")).read().strip('\n').split('\n')
+notregisteredInstances = {}
+for notregistered in [ x.split(',') for x in notregisteredInstancesFromFile if x]:
+    notregisteredInstances[notregistered[0]] = datetime.strptime(notregistered[1],'%Y-%m-%d %H:%M:%S')
+
+availableVolumesFromFile = []
+if os.path.isfile(AVAILABLE_VOLUMES_FILE):
+    availableVolumesFromFile = (open(str(NOTREGISTERED_INSTANCES_FILE),"r")).read().strip('\n').split('\n')
+availableVolumes = {}
+for available in [ x.split(',') for x in availableVolumesFromFile if x]:
+    availableVolumes[available[0]] = datetime.strptime(available[1],'%Y-%m-%d %H:%M:%S')
+
+users = z.getUsers()
+now = datetime.utcnow()
+time6minutes = timedelta(minutes=6)
+time10minutes = timedelta(minutes=10)
+
+volumes = []
+volumes.extend(aws.getVolumes('us-east-2'))
+
+volumesFromProvider = []
+volumesFromProviderAvailable = []
+for volume in volumes:
+    if volume['owner'] in users:
+        if volume['zabbixignore']:
+            continue
+        if volume['state'] in ['in-use']:
+            volumesFromProvider.append({'id':volume['id'], 'owner':volume['owner'], 'attachments':volume['attachments'], 'launchtime':volume['launchtime']})
+        elif volume['state'] in ['available']:
+            volumesFromProviderAvailable.append({'id':volume['id'], 'owner':volume['owner'], 'launchtime':volume['launchtime']})
 
 drivers = []
-drivers.append(aws.getInstances('us-east-1'))
-drivers.append(aws.getInstances('us-east-2'))
+drivers.extend(aws.getInstances('us-east-1'))
+drivers.extend(aws.getInstances('us-east-2'))
 
-time6minutes = timedelta(minutes=6)
-now = datetime.utcnow()
 hostsFromProvider = []
 stoppedHostsFromProvider = []
 terminatedHostsFromProvider = []
-users = z.getUsers()
 userNotRegistered = []
 
 f = open(str(STOPPED_INSTANCES_FILE),"w")
-for driver in drivers:
-    for node in driver:
-        if node['owner'] in users:
-            if now - node['launchtime'] > time6minutes:
-                if node['zabbixignore']:
-                    continue
-                if node['state'] in ['stopped', 'stopping']:
-                    stoppedHostsFromProvider.append(node['id'])
-                    f.write(str(node['id'])+','+str(node['launchtime'])+'\n')
-                elif node['state'] not in ['terminated', 'shutting-down']:
-                    hostsFromProvider.append({'id':node['id'], 'owner':node['owner']})
-        elif node['owner'] not in userNotRegistered:
-            userNotRegistered.append(node['owner'])
+for instance in instances:
+    if instance['owner'] in users:
+        if now - instance['launchtime'] > time6minutes:
+            if instance['zabbixignore']:
+                continue
+            if instance['state'] in ['stopped', 'stopping']:
+                stoppedHostsFromProvider.append(instance['id'])
+                f.write(str(instance['id'])+','+str(instance['launchtime'])+'\n')
+            elif instance['state'] not in ['terminated', 'shutting-down']:
+                hostsFromProvider.append({'id':instance['id'], 'owner':instance['owner']})
+    elif instance['owner'] not in userNotRegistered:
+        userNotRegistered.append(instance['owner'])
 f.close()
 
 
@@ -89,15 +115,7 @@ for stoppedHost in stoppedInstancesFromFile:
     logger.info("[AUDIT] HOST " + str(stoppedHost['host']) + " WAS STARTED, SO I ENABLED THESE TRIGGERS: " + str(', '.join(triggers)))
 
 ##DETECT NEW HOSTS NOT REGISTERED
-notregisteredInstances = {}
-for notregistered in [ x.split(',') for x in notregisteredInstancesFromFile]:
-    notregisteredInstances[notregistered[0]] = datetime.strptime(notregistered[1],'%Y-%m-%d %H:%M:%S')
-
-
 newNotregisteredInstances = []
-time10minutes = timedelta(minutes=10)
-now = datetime.utcnow()
-
 for host in hostsFromProvider:
     if host['id'] not in [ x['name'] for x in hostsFromZabbix]:
         if host['id'] not in [ x for x in list(notregisteredInstances.keys())] or now - notregisteredInstances[host['id']] > time10minutes:
@@ -108,7 +126,7 @@ for host in hostsFromProvider:
                 emails = z.getAdminsEmail()
                 emails.append(useremail)
                 logger.info("[AUDIT] [NOT REGISTERED] SENDING AN EMAIL TO ADMINS AND " + host['owner'])
-                alert_email(emails,host['id'])
+                notregistered_email(emails,host['id'])
             except (NotFoudException,KeyError) as e:
                 logger.error("[AUDIT] [NOT REGISTERED] COULD NOT SEND EMAIL TO ADMINS AND " + host['owner'])
                 logger.error(e)
@@ -118,4 +136,28 @@ for host in hostsFromProvider:
 f = open(str(NOTREGISTERED_INSTANCES_FILE),"w")
 for notregistered in newNotregisteredInstances:
     f.write(str(notregistered)+'\n')
+f.close()
+
+
+##DETECT AVAILABLE VOLUMES
+nowAvailableVolumes = []
+for volume in volumesFromProviderAvailable:
+    if volume['id'] not in [ x for x in list(availableVolumes.keys())] or now - availableVolumes[volume['id']] > time10minutes:
+        nowAvailableVolumes.append(str(volume['id'])+','+str(datetime.utcnow()))
+        logger.info("[AUDIT] Volume ("+str(volume['id'])+") is available for a long time")
+        try:
+            useremail = z.getUserEmail(volume['owner'],selectMedias=[])
+            emails = z.getAdminsEmail()
+            emails.append(useremail)
+            logger.info("[AUDIT] SENDING AN EMAIL TO ADMINS AND " + volume['owner'])
+            availablevolume_email(emails,volume['id'])
+        except (NotFoudException,KeyError) as e:
+            logger.error("[AUDIT] COULD NOT SEND EMAIL TO ADMINS AND " + volume['owner'])
+            logger.error(e)
+    else:
+        nowAvailableVolumes.append(str(volume['id'])+','+str(availableVolumes[volume['id']]))
+
+f = open(str(AVAILABLE_VOLUMES_FILE),"w")
+for available in nowAvailableVolumes:
+    f.write(str(available)+'\n')
 f.close()

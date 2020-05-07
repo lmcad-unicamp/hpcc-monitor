@@ -11,7 +11,7 @@ home=os.path.dirname(os.path.realpath(__file__))
 ACCESS_ID = (open(home+"/private/aws_access_key", "r")).read().strip('\n')
 SECRET_KEY = (open(home+"/private/aws_secret_access_key", "r")).read().strip('\n')
 
-regions = {'us-east-2': "US East (Ohio)", 'us-east-1': "US East (N. Virginia)",
+regions = {'us-east-1': "US East (N. Virginia)", 'us-east-2': "US East (Ohio)",
            'us-west-1': "US West (N. California)", 'us-west-2': "US West (Oregon)",
            'ap-east-1': "Asia Pacific (Hong Kong)", 'ap-south-1': "Asia Pacific (Mumbai)",
            'ap-northeast-3': "Asia Pacific (Osaka-Local)", 'ap-northeast-2': "Asia Pacific (Seoul)",
@@ -28,6 +28,29 @@ families = {'generalpurpose': ['m4', 'm5nd', 'm5n', 'm5ad', 'm5a', 'm5d', 'm5', 
             'accelerated' : ['g3', 'g3s', 'g4dn', 'inf1', 'p2', 'p3dn', 'p3'],
             'storage' : ['h1', 'd2', 'i3en', 'i3']}
 
+def getVolumes(region):
+    ec2 = boto.resource('ec2', region_name=region, aws_access_key_id=ACCESS_ID, aws_secret_access_key=SECRET_KEY)
+
+    volumes = []
+    for volume in ec2.volumes.all():
+        v = {}
+        tags = {item['Key']:item['Value'] for item in volume.tags}
+        v['owner'] = tags['owner']
+        if 'zabbixignore' in tags and tags['zabbixignore'] in ['true', 'True']:
+            v['zabbixignore'] = True
+        else:
+            v['zabbixignore'] = False
+        v['attachments'] = None
+        for a in volume.attachments:
+            if a['State'] == 'attached':
+                v['attachments'] = {}
+                v['attachments']['device'] = a['Device']
+                v['attachments']['instance'] = a['InstanceId']
+        v['id'] = volume.id
+        v['launchtime'] = volume.create_time.replace(tzinfo=None)
+        v['state'] = volume.state
+        volumes.append(v)
+    return volumes
 
 def getInstances(region):
     client = boto.client('ec2', region_name=region, aws_access_key_id=ACCESS_ID, aws_secret_access_key=SECRET_KEY)

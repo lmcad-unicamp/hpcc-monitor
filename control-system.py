@@ -23,23 +23,23 @@ ACCESS_ID = (open(home+"/private/aws_access_key", "r")).read().strip('\n')
 SECRET_KEY = (open(home+"/private/aws_secret_access_key", "r")).read().strip('\n')
 NOTREGISTERED_USERS_FILE = home+"/files/notregistered-users.users"
 
-drivers = []
-drivers.append(aws.getInstances('us-east-1'))
-drivers.append(aws.getInstances('us-east-2'))
-
 users = z.getUsers()
+
+
+instances = []
+instances.extend(aws.getInstances('us-east-1'))
+instances.extend(aws.getInstances('us-east-2'))
 
 hostsFromProvider = []
 hostsFromProviderStopped = []
-for driver in drivers:
-    for node in driver:
-        if node['owner'] in users:
-            if node['zabbixignore']:
-                continue
-            if node['state'] not in ['terminated', 'shutting-down', 'stopped']:
-                hostsFromProvider.append({'id':node['id'], 'owner':node['owner'], 'launchtime':node['launchtime']})
-            elif node['state'] in ['stopped']:
-                hostsFromProviderStopped.append({'id':node['id']})
+for instance in instances:
+    if instance['owner'] in users:
+        if instance['zabbixignore']:
+            continue
+        if instance['state'] not in ['terminated', 'shutting-down', 'stopped']:
+            hostsFromProvider.append({'id':instance['id'], 'owner':instance['owner'], 'launchtime':instance['launchtime']})
+        elif instance['state'] in ['stopped']:
+            hostsFromProviderStopped.append({'id':instance['id']})
 
 hostsFromZabbix = z.zapi.host.get(output = ['name'], filter={'status':'0'})
 hostsFromZabbix = [x for x in hostsFromZabbix if not ("10084" == x.get('hostid'))]
