@@ -1,10 +1,11 @@
 import smtplib
 import os
 from email.mime.text import MIMEText
-home=os.path.dirname(os.path.realpath(__file__))
+home = os.path.dirname(os.path.realpath(__file__))
 
-EMAIL_USER= (open(home+"/private/email_user", "r")).read().strip('\n')
-EMAIL_PASSWORD= (open(home+"/private/email_password", "r")).read().strip('\n')
+EMAIL_USER = (open(home+"/private/email_user", "r")).read().strip('\n')
+EMAIL_PASSWORD = (open(home+"/private/email_password", "r")).read().strip('\n')
+
 
 def notregistered_email(emails, host):
     s = smtplib.SMTP_SSL(host='smtp.gmail.com', port=465)
@@ -23,6 +24,7 @@ def notregistered_email(emails, host):
     s.sendmail(EMAIL_USER, emails, msg.as_string())
     s.close()
 
+
 def availablevolume_email(emails, volume):
     s = smtplib.SMTP_SSL(host='smtp.gmail.com', port=465)
     s.ehlo()
@@ -40,7 +42,8 @@ def availablevolume_email(emails, volume):
     s.sendmail(EMAIL_USER, emails, msg.as_string())
     s.close()
 
-def registered_email(email, username):
+
+def user_registered(email, username):
     s = smtplib.SMTP_SSL(host='smtp.gmail.com', port=465)
     s.ehlo()
     s.login(EMAIL_USER, EMAIL_PASSWORD)
@@ -57,6 +60,7 @@ def registered_email(email, username):
         msg['To'] = email
     s.sendmail(EMAIL_USER, email, msg.as_string())
     s.close()
+
 
 def usernotfound_email(emails, host):
     s = smtplib.SMTP_SSL(host='smtp.gmail.com', port=465)

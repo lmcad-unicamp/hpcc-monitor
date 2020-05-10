@@ -1,14 +1,10 @@
-import logging
 import os
-import zapi as z
-import boto3 as boto
+import logging
+import zapi as monitorserver
 import awsapi as aws
-from sendemail import usernotfound_email
-from datetime import datetime,timedelta
 
-
+# Setting Log File
 home = os.path.dirname(os.path.realpath(__file__))
-
 logger = logging.getLogger(str(__file__))
 logger.setLevel(logging.INFO)
 fh = logging.FileHandler(home+"/log/control.log")
@@ -19,90 +15,93 @@ ch.setFormatter(formatter)
 logger.addHandler(fh)
 logger.addHandler(ch)
 
-ACCESS_ID = (open(home+"/private/aws_access_key", "r")).read().strip('\n')
-SECRET_KEY = (open(home+"/private/aws_secret_access_key", "r")).read().strip('\n')
-NOTREGISTERED_USERS_FILE = home+"/files/notregistered-users.users"
+# Gets users from Monitor Server
+users = monitorserver.get_users()
 
-users = z.getUsers()
+# Gets instances from providers
+instances = aws.get_instances(pricing=True)
 
-
-instances = []
-instances.extend(aws.getInstances('us-east-1'))
-instances.extend(aws.getInstances('us-east-2'))
-
-hostsFromProvider = []
-hostsFromProviderStopped = []
+hostsFromProvider = {}
+hostsFromProviderStopped = {}
+hostsFromProviderUserNotRegistered = {}
+# For each instance, we check if the user(user) is registered on Monitor Server,
+# if it is monitor ignore and, also, terminated instances are ignored
 for instance in instances:
-    if instance['owner'] in users:
-        if instance['zabbixignore']:
-            continue
-        if instance['state'] not in ['terminated', 'shutting-down', 'stopped']:
-            hostsFromProvider.append({'id':instance['id'], 'owner':instance['owner'], 'launchtime':instance['launchtime']})
-        elif instance['state'] in ['stopped']:
-            hostsFromProviderStopped.append({'id':instance['id']})
+    if instance['monitorignore']:
+        continue
+    if instance['provider'] in ['aws']:
+        # If the instance is stopped or stopping
+        if instance['state'] in ['stopped', 'stopping']:
+            if instance['user'] in users:
+                hostsFromProviderStopped[instance['id']] = {
+                                        'id': instance['id']
+                                        }
+        # If the instance is running
+        elif instance['state'] in ['running', 'pending']:
+            # If its from a user not registered
+            if instance['user'] not in users:
+                hostsFromProviderUserNotRegistered[instance['id']] = {
+                                        'id': instance['id'],
+                                        'user': instance['user']}
+            hostsFromProvider[instance['id']] = {
+                                    'id': instance['id'],
+                                    'user': instance['user'],
+                                    'type': instance['type'],
+                                    'family': instance['family'],
+                                    'provider': instance['provider'],
+                                    'region': instance['region'],
+                                    'spot': instance['spot'],
+                                    'price': instance['price'],
+                                    'launchtime': instance['launchtime']
+                                    }
 
-hostsFromZabbix = z.zapi.host.get(output = ['name'], filter={'status':'0'})
-hostsFromZabbix = [x for x in hostsFromZabbix if not ("10084" == x.get('hostid'))]
+hostsFromMonitorServer = monitorserver.get_hosts(
+                                        output=['name'],
+                                        filter={'status': '0'},
+                                        macros=['macro', 'value'],
+                                        templates=['templateid', 'name'],
+                                        groups=['groupsid', 'name']
+                                        )
 
-##DETECT TERMINATED INSTACES AND DISABLE HOSTS]
-for host in hostsFromZabbix:
-    if host['name'] in [x['id'] for x in hostsFromProviderStopped]:
-        hostsFromZabbix.remove(host)
-    elif host['name'] not in [x['id'] for x in hostsFromProvider]:
-        z.host_disable(hostid=host['hostid'])
-        hostsFromZabbix.remove(host)
+# If the instance is stopped, we are not going to handle it here
+for host in {host for host in hostsFromMonitorServer
+             if host in hostsFromProviderStopped}:
+    del hostsFromMonitorServer[host]
 
+# Detect terminated instances and disable it on Monitor Server
+for host in {host for host in hostsFromMonitorServer
+             if host not in hostsFromProvider}:
+    monitorserver.host_disable(hostsFromMonitorServer[host])
+    del hostsFromMonitorServer[host]
 
-##UPDATE uptime
-#now = datetime.utcnow()
-#for host in hostsFromZabbix:
-#    launchtime = [ x['launchtime'] for x in hostsFromProvider if str(x['id']) == str(host['name']) ][0]
-#    uptime = str(int((now - launchtime).total_seconds()))
-#    z.host_update_uptime(hostid=host['hostid'],uptime=uptime)
+# Gets the attributes from provider
+for host in hostsFromMonitorServer:
+    hostsFromMonitorServer[host]['user'] = hostsFromProvider[host]['user']
+    hostsFromMonitorServer[host]['provider'] = hostsFromProvider[host][
+                                                                'provider']
+    hostsFromMonitorServer[host]['region'] = hostsFromProvider[host]['region']
+    hostsFromMonitorServer[host]['type'] = hostsFromProvider[host]['type']
+    hostsFromMonitorServer[host]['family'] = hostsFromProvider[host]['family']
+    hostsFromMonitorServer[host]['spot'] = hostsFromProvider[host]['spot']
+    hostsFromMonitorServer[host]['price'] = hostsFromProvider[host]['price']
+    hostsFromMonitorServer[host]['launchtime'] = hostsFromProvider[host][
+                                                                'launchtime']
 
+# Associate the user with the host when the user is registered
+for host in hostsFromMonitorServer:
+    if host not in hostsFromProviderUserNotRegistered:
+        monitorserver.host_user_association(hostsFromMonitorServer[host])
 
-##ASSOCIATE USER AND HOST
-for host in hostsFromZabbix:
-    for hostProvider in hostsFromProvider:
-        if host['name'] == hostProvider['id']:
-            user = hostProvider['owner']
-            try:
-                z.getUserID(user)
-            except z.NotFoudException as e:
-                notregisteredUsersFromFile = []
-                if os.path.isfile(NOTREGISTERED_USERS_FILE):
-                    notregisteredUsersFromFile = (open(str(NOTREGISTERED_USERS_FILE),"r")).read().strip('\n')
-                notregisteredUsers = {}
-                for notregistered in [ x.split(',') for x in notregisteredUsersFromFile]:
-                    notregisteredUsers[notregistered[0]] = datetime.strptime(notregistered[1],'%Y-%m-%d %H:%M:%S.%f')
+# Associate the host with its region and provider
+for host in hostsFromMonitorServer:
+    monitorserver.host_region_association(hostsFromMonitorServer[host])
+    monitorserver.host_provider_association(hostsFromMonitorServer[host])
 
-                newNotregisteredUsers = []
-                time30minutes = timedelta(minutes=30)
-                now = datetime.utcnow()
+# Detect changed instance type and family
+for host in hostsFromMonitorServer:
+    monitorserver.host_update_type(hostsFromMonitorServer[host])
+    monitorserver.host_update_family(hostsFromMonitorServer[host])
 
-                if user not in [ x for x in list(notregisteredUsers.keys())] or now - notregisteredUsers[user] > time30minutes:
-                    newNotregisteredUsers.append(str(user)+','+str(datetime.utcnow()))
-                    try:
-                        logger.info("[CONTROL] [NOT REGISTERED] SENDING AN EMAIL TO ADMINS")
-                        usernotfound_email(z.getAdminsEmail(),user)
-                    except (z.NotFoudException,KeyError) as f:
-                        logger.error("[CONTROL] [NOT REGISTERED] COULD NOT SEND EMAIL")
-                        logger.error(f)
-                else:
-                    newNotregisteredUsers.append(str(user)+','+str(notregisteredUsers[user]))
-
-                f = open(str(NOTREGISTERED_USERS_FILE),"w")
-                for notregistered in newNotregisteredUsers:
-                    f.write(str(notregistered)+'\n')
-                f.close()
-            else:
-                z.host_user_association(user=user,hostname=host['name'])
-
-
-##DETECT CHANGED INSTANCE TYPE
-for host in hostsFromZabbix:
-    z.host_update_type(hostid=host['hostid'])
-
-##DETECT CHANGED PRICES
-for host in hostsFromZabbix:
-    z.host_update_price(hostid=host['hostid'])
+# DETECT CHANGED PRICES
+for host in hostsFromMonitorServer:
+    monitorserver.host_update_instance_price(hostsFromMonitorServer[host])
