@@ -5,6 +5,7 @@ import awsapi as aws
 from sendemail import (notregistered_email, availablevolume_email,
                        usernotfound_email)
 from datetime import datetime, timedelta
+from pprint import pprint
 
 # Setting Log File
 home = os.path.dirname(os.path.realpath(__file__))
@@ -33,17 +34,17 @@ NOW = datetime.utcnow().replace(tzinfo=None)
 users = monitorserver.get_users()
 
 # Get instances and volume from providers
-instances = aws.get_instances()
-volumes = aws.getVolumes()
+instances = aws.get_instances(ignore={'tags': {'monitorignore':
+                                               ['True', 'true']},
+                                      'state': ['terminated',
+                                                'shutting-down']})
+volumes = aws.get_volumes()
 
 hostsFromProvider = {}
 hostsFromProviderStopped = {}
 hostsFromProviderUserNotRegistered = {}
-# For each instance, check if the user(user) is registered on Monitor Server,
-# if it is monitor ignore and, also, terminated instances are ignored
+# For each instance, check if the user(user) is registered on Monitor Server
 for instance in instances:
-    if instance['monitorignore']:
-        continue
     if NOW - instance['launchtime'] > STARTING_INSTANCES_TIME_TO_NOTIFY:
         if instance['provider'] in ['aws']:
             # If the instance is stopped or stopping
@@ -64,7 +65,8 @@ for instance in instances:
                                 'family': instance['family'],
                                 'provider': instance['provider'],
                                 'region': instance['region'],
-                                'spot': instance['spot'],
+                                'service': instance['service'],
+                                'service_id': instance['service_id'],
                                 'price': instance['price'],
                                 'launchtime': instance['launchtime']
                                 }
@@ -74,30 +76,35 @@ for instance in instances:
                                             'user': instance['user']}
 
 # For each volume, we check if the user(user) is registered on Monitor Server,
-# if it is monitor ignore
+# and check if it is monitor ignore
 volumesFromProvider = []
 volumesFromProviderAvailable = []
 for volume in volumes:
     if volume['monitorignore']:
         continue
     if volume['provider'] in ['aws']:
-        if volume['owner'] in users:
+        if volume['user'] in users:
             if volume['state'] in ['in-use']:
-                volumesFromProvider.append({'id': volume['id'],
-                                            'owner': volume['owner'],
-                                            'region': volume['region'],
-                                            'attachments':
-                                                volume['attachments'],
-                                            'launchtime': volume['launchtime']
-                                            })
+                volumesFromProvider.append(
+                                    {'id': volume['id'],
+                                     'user': volume['user'],
+                                     'type': volume['type'],
+                                     'region': volume['region'],
+                                     'provider': volume['provider'],
+                                     'attachments': volume['attachments'],
+                                     'launchtime': volume['launchtime'],
+                                     'price': volume['price']
+                                     })
             elif volume['state'] in ['available']:
-                volumesFromProviderAvailable.append({'id': volume['id'],
-                                                     'owner': volume['owner'],
-                                                     'region':
-                                                        volume['region'],
-                                                     'launchtime':
-                                                        volume['launchtime']
-                                                     })
+                volumesFromProviderAvailable.append(
+                                    {'id': volume['id'],
+                                     'user': volume['user'],
+                                     'type': volume['type'],
+                                     'region': volume['region'],
+                                     'provider': volume['provider'],
+                                     'launchtime': volume['launchtime'],
+                                     'price': volume['price']
+                                     })
 
 hostsFromMonitorServer = monitorserver.get_hosts(
                                         output=['name'],
@@ -114,7 +121,10 @@ for host in [x for x in hostsFromMonitorServer if x in hostsFromProvider]:
     hostsFromMonitorServer[host]['region'] = hostsFromProvider[host]['region']
     hostsFromMonitorServer[host]['type'] = hostsFromProvider[host]['type']
     hostsFromMonitorServer[host]['family'] = hostsFromProvider[host]['family']
-    hostsFromMonitorServer[host]['spot'] = hostsFromProvider[host]['spot']
+    hostsFromMonitorServer[host]['service'] = hostsFromProvider[host][
+                                                                'service']
+    hostsFromMonitorServer[host]['service_id'] = hostsFromProvider[host][
+                                                                'service_id']
     hostsFromMonitorServer[host]['price'] = hostsFromProvider[host]['price']
     hostsFromMonitorServer[host]['launchtime'] = hostsFromProvider[host][
                                                                 'launchtime']
@@ -148,15 +158,15 @@ for host in {host for host in hostsFromMonitorServer
             or NOW - notregisteredUsers[user] >
             NOTREGISTERED_USERS_TIME_TO_NOTIFY):
         usersAlreadyNotified.append(user)
-        newNotregisteredUsers.append(str(user) + ',' + str(NOW))
         del hostsFromMonitorServer[host]
         try:
             emails = monitorserver.get_admins_email()
-            usernotfound_email(emails, user)
+            #usernotfound_email(emails, user)
         except (monitorserver.NotFoudException, KeyError) as e:
             logger.error("[AUDIT] Not registered user. " + user
                          + "Could not send email to admins: " + str(e))
         else:
+            newNotregisteredUsers.append(str(user) + ',' + str(NOW))
             logger.info("[AUDIT] This user is not registered: "
                         + user + ". Sending email to admins")
     else:
@@ -172,7 +182,6 @@ f.close()
 
 
 # -----------------------------------------------------------------------------
-
 # Get stopped instances from file
 stoppedInstancesFromFile = []
 if os.path.isfile(STOPPED_INSTANCES_FILE):
@@ -216,24 +225,24 @@ for notregistered in [x.split(',')
 
 # Detect instances that are not registered on the Monitor Server
 newNotregisteredInstances = []
-for host in [x for x in hostsFromMonitorServer if x in hostsFromProvider]:
+for host in [x for x in hostsFromProvider if x not in hostsFromMonitorServer]:
     # If the admins and user have not been notified about this instance in the
     # last notification time period, we notify the admins and user
     if (host not in [x for x in notregisteredInstances]
-            or NOW - notregisteredInstances[host] >
-            NOTREGISTERED_INSTANCES_TIME_TO_NOTIFY):
-        newNotregisteredInstances.append(host + ',' + str(NOW))
+            or NOW - notregisteredInstances[host]
+            > NOTREGISTERED_INSTANCES_TIME_TO_NOTIFY):
         try:
             emails = monitorserver.get_admins_email()
             emails.append(monitorserver.get_user_email(hostsFromMonitorServer[
                                                         host]['user']))
-            notregistered_email(emails,host)
+            notregistered_email(emails, host)
         except monitorserver.NotFoudException as e:
             logger.error("[AUDIT] Not registered host " + host
                          + ". Could not send email to admins and user "
                          + hostsFromMonitorServer[host]['user'] + ": "
                          + str(e))
         else:
+            newNotregisteredInstances.append(host + ',' + str(NOW))
             logger.info("[AUDIT] This instance is not registered: "
                         + host + ". Sending email to admins and user "
                         + hostsFromMonitorServer[host]['user'])
@@ -252,7 +261,7 @@ f.close()
 # Get available volumes from file
 availableVolumesFromFile = []
 if os.path.isfile(AVAILABLE_VOLUMES_FILE):
-    availableVolumesFromFile = (open(str(NOTREGISTERED_INSTANCES_FILE), "r")
+    availableVolumesFromFile = (open(str(AVAILABLE_VOLUMES_FILE), "r")
                                 ).read().splitlines()
 availableVolumes = {}
 for available in [x.split(',') for x in availableVolumesFromFile if x]:
@@ -264,27 +273,26 @@ nowAvailableVolumes = []
 for volume in volumesFromProviderAvailable:
     # If the admins and user have not been notified about this volume in the
     # last notification time period, we notify the admins and user
-    if (volume not in [x for x in availableVolumes]
-            or NOW - availableVolumes[volume] >
-            AVAILABLE_VOLUMES_TIME_TO_NOTIFY):
-        newNotregisteredInstances.append(host + ',' + str(NOW))
+    if (volume['id'] not in [x for x in availableVolumes]
+            or (NOW - availableVolumes[volume['id']]
+                > AVAILABLE_VOLUMES_TIME_TO_NOTIFY)):
         try:
             emails = monitorserver.get_admins_email()
-            emails.append(monitorserver.get_user_email(hostsFromMonitorServer[
-                                                            host]['user']))
-            availablevolume_email(emails, volume)
+            emails.append(monitorserver.get_user_email(volume['user']))
+            # availablevolume_email(emails, volume)
         except monitorserver.NotFoudException as e:
-            logger.error("[AUDIT] Volume available for too long " + host
+            logger.error("[AUDIT] Volume available for too long " + volume
                          + ". Could not send email to admins and user "
-                         + hostsFromMonitorServer[host]['user']
+                         + volume['user']
                          + ": " + str(e))
         else:
+            nowAvailableVolumes.append(volume['id'] + ',' + str(NOW))
             logger.info("[AUDIT] This volume is available for too long: "
-                        + host + ". Sending email to admins and user "
-                        + hostsFromMonitorServer[host]['user'])
+                        + volume['id'] + ". Sending email to admins and user "
+                        + volume['user'])
     else:
-        nowAvailableVolumes.append(volume + ','
-                                   + str(availableVolumes[volume]))
+        nowAvailableVolumes.append(volume['id'] + ','
+                                   + str(availableVolumes[volume['id']]))
 
 # Write file with available volumes
 f = open(str(AVAILABLE_VOLUMES_FILE), "w")

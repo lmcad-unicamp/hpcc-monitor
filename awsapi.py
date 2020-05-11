@@ -445,19 +445,30 @@ def print_prices(products):
                + product["product"]["attributes"]["licenseModel"] + "      "
                + product["product"]["attributes"]["capacitystatus"] + " - "
                + product["product"]["attributes"]["tenancy"] + " "
-               + list(product["terms"]["OnDemand"].values())[0]["priceDimensions"].values()[0]["pricePerUnit"]["USD"] + " "
-               + list(product["terms"]["OnDemand"].values())[0]["priceDimensions"].values()[0]["unit"]
-            )
+               + list(product["terms"]["OnDemand"].values()
+                      )[0]["priceDimensions"].values(
+                      )[0]["pricePerUnit"]["USD"] + " "
+               + list(product["terms"]["OnDemand"].values()
+                      )[0]["priceDimensions"].values()[0]["unit"]
+               )
         if len(product["terms"].values()) > 1:
             for i in range(len(list(product["terms"]["Reserved"].values()))):
                 pprint("                                "
-                + list(product["terms"]["Reserved"].values())[i]["termAttributes"]["LeaseContractLength"] + " "
-                + list(product["terms"]["Reserved"].values())[i]["termAttributes"]["OfferingClass"] + " "
-                + list(product["terms"]["Reserved"].values())[i]["termAttributes"]["PurchaseOption"])
-                for j in range(len(list(product["terms"]["Reserved"].values())[i]["priceDimensions"].values())):
-                    pprint("                                                   "
-                    + list(product["terms"]["Reserved"].values())[i]["priceDimensions"].values()[j]["pricePerUnit"]["USD"] + " "
-                    + list(product["terms"]["Reserved"].values())[i]["priceDimensions"].values()[j]["unit"])
+                       + list(product["terms"]["Reserved"].values()
+                              )[i]["termAttributes"]["LeaseContractLength"]
+                       + " "
+                       + list(product["terms"]["Reserved"].values()
+                              )[i]["termAttributes"]["OfferingClass"] + " "
+                       + list(product["terms"]["Reserved"].values()
+                              )[i]["termAttributes"]["PurchaseOption"])
+                for j in range(len(list(product["terms"]["Reserved"].values()
+                                        )[i]["priceDimensions"].values())):
+                    pprint("                                                  "
+                           + list(product["terms"]["Reserved"].values()
+                                  )[i]["priceDimensions"].values(
+                                  )[j]["pricePerUnit"]["USD"] + " "
+                           + list(product["terms"]["Reserved"].values()
+                                  )[i]["priceDimensions"].values()[j]["unit"])
 
 
 # Get volumes from AWS
@@ -476,8 +487,6 @@ def get_volumes(pricing=False):
         else:
             # For each instance, we get attributes from the it
             for volume in [i for i in clientvolumes['Volumes']]:
-                print(volume)
-                print("---------------------")
                 v = {}
                 tags = {item['Key']: item['Value'] for item in volume['Tags']}
                 v['user'] = tags['owner']
@@ -501,14 +510,15 @@ def get_volumes(pricing=False):
                 v['price'] = None
                 if pricing:
                     v['price'] = get_volume_pricing(region, volume_info=volume)
-                print(v['price'])
                 v['region'] = re.sub(r'\D$', '', volume['AvailabilityZone'])
+                v['provider'] = 'aws'
                 volumes.append(v)
     return volumes
 
 
 # Get instances from AWS
-def get_instances(pricing=False):
+# if you want to ignore some hosts, just add ignore argument is a dict
+def get_instances(pricing=False, ignore=None):
     instances = []
     # For each region, we ask to the AWS API for instances
     for region in ['us-east-1', 'us-east-2']:
@@ -525,25 +535,35 @@ def get_instances(pricing=False):
             for instance in [i['Instances'][0]
                              for i in clientinstances['Reservations']]:
                 i = {}
+
+                # Get the state of the instance
+                i['state'] = instance['State']['Name']
+                # Ignore instances with states to ignore (argument)
+                if 'state' in ignore and i['state'] in ignore['state']:
+                    continue
+
+                # Get tags from instance
                 tags = {item['Key']: item['Value']
                         for item in instance['Tags']}
-                # If it is going to be ignored by Monitor Server
-                if ('monitorignore' in tags
-                   and tags['monitorignore'] in ['true', 'True']):
-                    i['monitorignore'] = True
-                else:
-                    i['monitorignore'] = False
+
+                # Ignore instances with tags to ignore (argument)
+                if 'tags' in ignore:
+                    if [True for t in ignore['tags']
+                       if t in tags and tags[t] in ignore['tags'][t]]:
+                        continue
+
                 # If it is spot
                 if 'SpotInstanceRequestId' in instance:
-                    i['spot'] = instance['SpotInstanceRequestId']
+                    i['service'] = 'spot'
+                    i['service_id'] = instance['SpotInstanceRequestId']
                 else:
-                    i['spot'] = None
+                    i['service'] = 'ondemand'
+                    i['service_id'] = instance['InstanceId']
                 i['user'] = tags['owner']
                 i['id'] = instance['InstanceId']
                 i['type'] = instance['InstanceType']
                 i['family'] = get_instance_family(instance['InstanceType'])
                 i['launchtime'] = instance['LaunchTime'].replace(tzinfo=None)
-                i['state'] = instance['State']['Name']
                 # The region comes like 'us-east-1b',
                 # we use regex to eliminate the final character
                 i['region'] = re.sub(r'\D$', '',
@@ -551,17 +571,13 @@ def get_instances(pricing=False):
                 i['price'] = None
                 i['provider'] = 'aws'
                 if pricing:
-                    if i['spot']:
-                        i['price'] = get_spotinstance_pricing(region,
+                    if i['service'] == 'ondemand':
+                        i['price'] = get_instance_pricing(region,
                                                               instance_info
                                                               =instance)
-                    else:
-                        i['price'] = get_instance_pricing(region,
+                    elif i['service'] == 'spot':
+                        i['price'] = get_spotinstance_pricing(region,
                                                           instance_info
                                                           =instance)
-                print(i['price'])
                 instances.append(i)
     return instances
-
-
-pprint(get_volumes(pricing=True))

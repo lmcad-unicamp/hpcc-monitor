@@ -1,5 +1,6 @@
 import logging
 import os
+import re
 import inspect
 import pyzabbix
 
@@ -18,6 +19,37 @@ zapi.login(ZABBIX_USER, ZABBIX_PASSWORD)
 
 class NotFoudException(Exception):
     pass
+
+
+# This function convert time to hour
+def convert_to_hour(delay):
+    number = re.findall(r'(\d+)', delay)
+    unit = re.findall(r'(\D+)', delay)
+
+    if unit[0] == 's':
+        return (float(number[0]) * 1.0 / 3600.0)
+    elif unit[0] == 'm':
+        return (float(number[0]) * 1.0 / 60.0)
+    else:
+        return number[0]
+
+
+# This function convert value type of this value
+def convert_value_type(value, valuetype):
+    if valuetype == '0':
+        return float(value)
+    elif valuetype in ['1', '2', '4']:
+        return str(value)
+    elif valuetype == '3':
+        return int(value)
+
+
+# Zabbix sender, send a value to a item
+def send_item(host, item, value):
+    os.system("zabbix_sender -z " + str(IPSERVER)
+              + " -s " + host['id']
+              + " -k " + item
+              + " -o " + str(value))
 
 
 # Get the id of a host
@@ -81,7 +113,7 @@ def get_user_email(username):
         user = zapi.user.get(userids=get_userID(username),
                              output=['userid'],
                              selectMedias=['mediatypeid', 'sendto'])
-    except pyzabbix.ZabbixAPIException as e:
+    except (pyzabbix.ZabbixAPIException, NotFoudException) as e:
         logger.error("[ZAPI] [get_user_email] Could not get email of user "
                      + username + ": " + str(e))
     else:
@@ -123,27 +155,32 @@ def get_admins_email():
 def host_triggers_disable(host):
     triggers = [x for x in host['triggers']]
     try:
-        zapi.trigger.update(triggerid=triggers, status='1')
+        for t in triggers:
+            zapi.trigger.update(triggerid=t, status=1)
     except pyzabbix.ZabbixAPIException as e:
         logger.error("[ZAPI] [host_triggers_disable] Could not disable "
-                     + "triggers " + str(triggers) + ": " + str(e))
+                     + "triggers " + ", ".join(triggers) + " of host " + host['id']
+                     + ": " + str(e))
     else:
         logger.info("[ZAPI] [host_triggers_disable] Triggers "
-                    + str(triggers) + " were disabled")
+                    + ", ".join(triggers) + " of host " + host['id']
+                    + " were disabled")
 
 
 # Disable triggers from a host
 def host_triggers_enable(host):
-    print(host)
     triggers = [x for x in host['triggers']]
     try:
-        zapi.trigger.update(triggerid=triggers, status='0')
+        for t in triggers:
+            zapi.trigger.update(triggerid=t, status=0)
     except pyzabbix.ZabbixAPIException as e:
         logger.error("[ZAPI] [host_triggers_enable] Could not enable trigger "
-                     + str(triggers) + ": " + str(e))
+                     + ", ".join(triggers) + " of host " + host['id']
+                     + ": " + str(e))
     else:
         logger.info("[ZAPI] [host_triggers_enable] Trigger "
-                    + str(triggers) + " was enabled")
+                    + ", ".join(triggers) + " of host " + host['id']
+                    + " were enabled")
 
 
 # Disable a host from monitoring
@@ -172,14 +209,20 @@ def host_enable(host):
 
 # Get hosts from Zabbix Server
 def get_hosts(output=None, filter=None, macros=None, triggers=None,
-              templates=None, groups=None):
+              templates=None, groups=None, items=None,
+              user=False, provider=False, region=False, service=False,
+              family=False, type=False, launchtime=False):
+    if not macros and (user or provider or region or service
+                       or family or type or launchtime):
+        macros = ['macro', 'value']
     try:
         hostsFromZabbix = zapi.host.get(output=output,
                                         filter=filter,
                                         selectMacros=macros,
                                         selectTriggers=triggers,
                                         selectParentTemplates=templates,
-                                        selectGroups=groups)
+                                        selectGroups=groups,
+                                        selectItems=items)
     except pyzabbix.ZabbixAPIException as e:
         logger.error("[ZAPI] [get_hosts] Could not get hosts from server: "
                      + str(e))
@@ -194,6 +237,49 @@ def get_hosts(output=None, filter=None, macros=None, triggers=None,
                 host['macros_zabbix'] = host['macros']
                 host['macros'] = ({item['macro']: item['value']
                                    for item in host['macros']})
+                # Get user
+                if '{$USER}' in host['macros']:
+                    host['user'] = host['macros']['{$USER}']
+                else:
+                    host['user'] = None
+                # Get provider
+                if '{$PROVIDER}' in host['macros']:
+                    host['provider'] = host['macros']['{$PROVIDER}']
+                else:
+                    host['provider'] = None
+                # Get region
+                if '{$REGION}' in host['macros']:
+                    host['region'] = host['macros']['{$REGION}']
+                else:
+                    host['region'] = None
+                # Get type
+                if '{$TYPE}' in host['macros']:
+                    host['type'] = host['macros']['{$TYPE}']
+                else:
+                    host['type'] = None
+                # Get family
+                if '{$FAMILY}' in host['macros']:
+                    host['family'] = host['macros']['{$FAMILY}']
+                else:
+                    host['family'] = None
+                # Get service
+                if '{$SERVICE}' in host['macros']:
+                    host['service'] = host['macros']['{$SERVICE}']
+                    host['service_id'] = host['macros']['{$SERVICE_ID}']
+                else:
+                    host['service'] = None
+                    host['service_id'] = None
+                # Get price
+                if '{$PRICE}' in host['macros']:
+                    host['price'] = host['macros']['{$PRICE}']
+                else:
+                    host['price'] = None
+                # Get launchtime
+                if '{$LAUNCHTIME}' in host['macros']:
+                    host['launchtime'] = host['macros']['{$LAUNCHTIME}']
+                else:
+                    host['launchtime'] = None
+
             # Change the key of some attributes
             if 'parentTemplates' in host:
                 host['templates_zabbix'] = host['parentTemplates']
@@ -211,6 +297,11 @@ def get_hosts(output=None, filter=None, macros=None, triggers=None,
                 host['groups'] = ({item['name']: item
                                    for item in host['groups']})
 
+            if 'items' in host:
+                host['items_zabbix'] = host['items']
+                host['items'] = ({item['key_']: item
+                                   for item in host['items']})
+
             if 'name' in host:
                 host['id'] = host['name']
                 del host['name']
@@ -224,8 +315,26 @@ def get_hosts(output=None, filter=None, macros=None, triggers=None,
 
 # Associate the host with its user
 def host_user_association(host):
-    groupName = host['user'] + '-hosts'
+    macros = host['macros']
+    groupName = host['user'] + '-user-hosts'
 
+    # If the USER macro is not present, it is added
+    if '{$USER}' not in macros:
+        host['macros_zabbix'].append({'macro': '{$USER}',
+                                      'value': str(host['user'])})
+        host['macros']['{$USER}'] = host['user']
+        try:
+            zapi.host.update(hostid=host['id_zabbix'],
+                             macros=host['macros_zabbix'])
+        except pyzabbix.ZabbixAPIException as e:
+            logger.error("[ZAPI] [host_user_association] Could not add "
+                         + "user " + host['user'] + " to the host "
+                         + host['id'] + ": " + str(e))
+        else:
+            logger.info("[ZAPI] [host_user_association] The user of host "
+                        + host['id'] + " added: " + host['user'])
+
+    # If the group of the user, it is added
     if groupName not in host['groups']:
         try:
             groupID = get_hostgroupID(groupName)
@@ -241,13 +350,13 @@ def host_user_association(host):
             try:
                 zapi.host.update(hostid=host['id_zabbix'],
                                  groups=host['groups_zabbix'])
-            except NotFoudException as f:
+            except pyzabbix.ZabbixAPIException as f:
                 logger.error("[ZAPI] [host_user_association] Could not update "
                              + "host " + host['id'] + ": " + str(f))
             else:
                 logger.info("[ZAPI] [host_user_association] The host "
-                            + host['id'] + " is now associate with user "
-                            + host['user'])
+                            + host['id'] + " is now associate with grouphost "
+                            + groupName)
 
 
 # Associate the host with its region
@@ -262,7 +371,7 @@ def host_region_association(host):
         try:
             zapi.host.update(hostid=host['id_zabbix'],
                              macros=host['macros_zabbix'])
-        except NotFoudException as e:
+        except pyzabbix.ZabbixAPIException as e:
             logger.error("[ZAPI] [host_region_association] Could not add "
                          + "region to the host " + host['id'] + ": " + str(e))
         else:
@@ -282,13 +391,60 @@ def host_provider_association(host):
         try:
             zapi.host.update(hostid=host['id_zabbix'],
                              macros=host['macros_zabbix'])
-        except NotFoudException as e:
-            logger.error("[ZAPI] [host_region_association] Could not add "
+        except pyzabbix.ZabbixAPIException as e:
+            logger.error("[ZAPI] [host_provider_association] Could not add "
                          + "provider to the host " + host['id']
                          + ": " + str(e))
         else:
-            logger.info("[ZAPI] [host_region_association] The provider of "
+            logger.info("[ZAPI] [host_provider_association] The provider of "
                         + "host " + host['id'] + " added: " + host['provider'])
+
+
+# Associate the host with its service (ondemand, spot, reservation, dedicated)
+def host_service_association(host):
+    macros = host['macros']
+
+    # If the SERVICE macro is not present, if not it is added
+    if '{$SERVICE}' not in macros:
+        host['macros_zabbix'].append({'macro': '{$SERVICE}',
+                                      'value': str(host['service'])})
+        host['macros_zabbix'].append({'macro': '{$SERVICE_ID}',
+                                      'value': str(host['service_id'])})
+        host['macros']['{$SERVICE}'] = host['service']
+        host['macros']['{$SERVICE_ID}'] = host['service_id']
+        try:
+            zapi.host.update(hostid=host['id_zabbix'],
+                             macros=host['macros_zabbix'])
+        except pyzabbix.ZabbixAPIException as e:
+            logger.error("[ZAPI] [host_service_association] Could not add "
+                         + "service to the host " + host['id']
+                         + ": " + str(e))
+        else:
+            logger.info("[ZAPI] [host_service_association] The service of "
+                        + "host " + host['id'] + " added: " + host['service'])
+
+
+# Associate the host with its lunchtime
+def host_launchtime_association(host):
+    macros = host['macros']
+
+    # If the LAUNCHTIME macro is not present, if not it is added
+    if '{$LAUNCHTIME}' not in macros:
+        launchtime_string = str(host['launchtime'])
+        host['macros_zabbix'].append({'macro': '{$LAUNCHTIME}',
+                                      'value': str(launchtime_string)})
+        host['macros']['{$LAUNCHTIME}'] = launchtime_string
+        try:
+            zapi.host.update(hostid=host['id_zabbix'],
+                             macros=host['macros_zabbix'])
+        except pyzabbix.ZabbixAPIException as e:
+            logger.error("[ZAPI] [host_launchtime_association] Could not add "
+                         + "launchtime to the host " + host['id']
+                         + ": " + str(e))
+        else:
+            logger.info("[ZAPI] [host_launchtime_association] The launchtime "
+                        + "of host " + host['id'] + " added: "
+                        + launchtime_string)
 
 
 # Update the price of a host
@@ -301,7 +457,7 @@ def host_update_instance_price(host):
         # If the PRICE macro is present
         if '{$PRICE}' in macros:
             # Check its consistency, if it is different we update the macro
-            if macros['{$PRICE}'] != host['price']:
+            if float(macros['{$PRICE}']) != float(host['price']):
                 lastprice = macros['{$PRICE}']
                 for m in host['macros_zabbix']:
                     if m['macro'] == '{$PRICE}':
@@ -312,7 +468,7 @@ def host_update_instance_price(host):
                 loggerMessage = ("[ZAPI] [host_update_instance_price] "
                                  + "The price of host " + host['id']
                                  + " has been changed: "
-                                 + lastprice + " -> " + host['price'])
+                                 + lastprice + " -> " + str(host['price']))
         # If the PRICE is not present, we add it
         else:
             host['macros_zabbix'].append({'macro': '{$PRICE}',
@@ -321,15 +477,16 @@ def host_update_instance_price(host):
             changed = True
             loggerMessage = ("[ZAPI] [host_update_instance_price] The price "
                              + "of host " + host['id']
-                             + " added: " + host['price'])
+                             + " added: " + str(host['price']))
 
         if changed:
             try:
                 os.system("zabbix_sender -z " + str(IPSERVER) + " -s "
-                          + host['id'] + " -k cloud.price -o " + host['price'])
+                          + host['id'] + " -k cloud.price -o "
+                          + str(host['price']))
                 zapi.host.update(hostid=host['id_zabbix'],
                                  macros=host['macros_zabbix'])
-            except NotFoudException as e:
+            except pyzabbix.ZabbixAPIException as e:
                 logger.error("[ZAPI] [host_update_instance_price] Could not "
                              + "update price of the host "
                              + host['id'] + " :" + str(e))
@@ -367,7 +524,7 @@ def host_update_type(host):
         try:
             zapi.host.update(hostid=host['id_zabbix'],
                              macros=host['macros_zabbix'])
-        except NotFoudException as e:
+        except pyzabbix.ZabbixAPIException as e:
             logger.error("[ZAPI] [host_update_type] Could not update macros "
                          + "of the host " + host['id'] + ": " + str(e))
         else:
@@ -452,7 +609,7 @@ def host_update_family(host):
         try:
             zapi.host.update(hostid=host['id_zabbix'],
                              macros=host['macros_zabbix'])
-        except NotFoudException as e:
+        except pyzabbix.ZabbixAPIException as e:
             logger.error("[ZAPI] [host_update_family] Could not update macros "
                          + "of the host " + host['id'] + ": " + str(e))
         else:
@@ -466,3 +623,37 @@ def host_update_family(host):
                     if t.find(lastfamily) != -1:
                         oldTemplate = t
                 host_update_template(host, newTemplate, oldTemplate)
+
+
+# Get history from a item
+def get_history(host, itemkey=None, itemid=None, since=None, till=None,
+                output=['itemid', 'clock', 'value']):
+    # If item key, get the id
+    if itemkey:
+        itemid = host['items'][itemkey]['itemid']
+    # If item id, find out the name if do not have it
+    elif itemid:
+        if not itemkey:
+            for i in host['items']:
+                if host['items'][i]['itemid'] == itemid:
+                    itemkey = host['items'][i]['key_']
+    # If do not have itemkey nor itemid, it is an error
+    else:
+        logger.error("[ZAPI] [get_history] an item key or item id is required")
+        return
+
+    try:
+        values = zapi.history.get(itemids=itemid,
+                                  history=host['items'][itemkey]['value_type'],
+                                  time_from=since,
+                                  time_till=till,
+                                  sortorder='DESC',
+                                  output=output)
+    except pyzabbix.ZabbixAPIException as e:
+        logger.error("[ZAPI] [get_history] Could not get history of item "
+                     + itemkey + "of the host " + host['id'] + ": " + str(e))
+    else:
+        for v in values:
+            v['timestamp'] = int(v['clock'])
+            del v['clock']
+        return values

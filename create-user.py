@@ -25,7 +25,7 @@ while keep:
         keep = True
 
 try:
-    hostgroupid = z.zapi.hostgroup.create(name=user_name+'-hosts')
+    hostgroupid = z.zapi.hostgroup.create(name=user_name+'-user-hosts')
     hostgroupid = hostgroupid['groupids'][0]
     rights = z.zapi.usergroup.get(usrgrpids=['14'],
                                   selectRights=['id', 'permission'])

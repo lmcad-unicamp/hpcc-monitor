@@ -2,6 +2,7 @@ import os
 import logging
 import zapi as monitorserver
 import awsapi as aws
+from pprint import pprint
 
 # Setting Log File
 home = os.path.dirname(os.path.realpath(__file__))
@@ -19,16 +20,16 @@ logger.addHandler(ch)
 users = monitorserver.get_users()
 
 # Gets instances from providers
-instances = aws.get_instances(pricing=True)
-
+instances = aws.get_instances(pricing=True, ignore={
+                                            'tags': {'monitorignore':
+                                                     ['True', 'true']},
+                                            'state': ['terminated',
+                                                      'shutting-down']})
 hostsFromProvider = {}
 hostsFromProviderStopped = {}
 hostsFromProviderUserNotRegistered = {}
-# For each instance, we check if the user(user) is registered on Monitor Server,
-# if it is monitor ignore and, also, terminated instances are ignored
+# For each instance, we check if the user(user) is registered on Monitor Server
 for instance in instances:
-    if instance['monitorignore']:
-        continue
     if instance['provider'] in ['aws']:
         # If the instance is stopped or stopping
         if instance['state'] in ['stopped', 'stopping']:
@@ -50,7 +51,8 @@ for instance in instances:
                                     'family': instance['family'],
                                     'provider': instance['provider'],
                                     'region': instance['region'],
-                                    'spot': instance['spot'],
+                                    'service': instance['service'],
+                                    'service_id': instance['service_id'],
                                     'price': instance['price'],
                                     'launchtime': instance['launchtime']
                                     }
@@ -82,7 +84,10 @@ for host in hostsFromMonitorServer:
     hostsFromMonitorServer[host]['region'] = hostsFromProvider[host]['region']
     hostsFromMonitorServer[host]['type'] = hostsFromProvider[host]['type']
     hostsFromMonitorServer[host]['family'] = hostsFromProvider[host]['family']
-    hostsFromMonitorServer[host]['spot'] = hostsFromProvider[host]['spot']
+    hostsFromMonitorServer[host]['service'] = hostsFromProvider[host][
+                                                                'service']
+    hostsFromMonitorServer[host]['service_id'] = hostsFromProvider[host][
+                                                                'service_id']
     hostsFromMonitorServer[host]['price'] = hostsFromProvider[host]['price']
     hostsFromMonitorServer[host]['launchtime'] = hostsFromProvider[host][
                                                                 'launchtime']
@@ -92,16 +97,12 @@ for host in hostsFromMonitorServer:
     if host not in hostsFromProviderUserNotRegistered:
         monitorserver.host_user_association(hostsFromMonitorServer[host])
 
-# Associate the host with its region and provider
+# Associate the host with its provider, region, family, type, launchtime, price
 for host in hostsFromMonitorServer:
-    monitorserver.host_region_association(hostsFromMonitorServer[host])
     monitorserver.host_provider_association(hostsFromMonitorServer[host])
-
-# Detect changed instance type and family
-for host in hostsFromMonitorServer:
-    monitorserver.host_update_type(hostsFromMonitorServer[host])
+    monitorserver.host_region_association(hostsFromMonitorServer[host])
+    monitorserver.host_service_association(hostsFromMonitorServer[host])
     monitorserver.host_update_family(hostsFromMonitorServer[host])
-
-# DETECT CHANGED PRICES
-for host in hostsFromMonitorServer:
+    monitorserver.host_update_type(hostsFromMonitorServer[host])
+    monitorserver.host_launchtime_association(hostsFromMonitorServer[host])
     monitorserver.host_update_instance_price(hostsFromMonitorServer[host])

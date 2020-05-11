@@ -10,6 +10,7 @@ while keep:
     db_server = input('\t\tEnter the database server IP: ')
     db_user = input('\t\tEnter the database server user: ')
     db_password = input('\t\tEnter the database server password: ')
+    website = input('\t\tEnter a website of informations: ')
 
     print('\t'+str(email_user))
     print('\t'+str(email_password))
@@ -19,6 +20,7 @@ while keep:
     print('\t'+str(db_server))
     print('\t'+str(db_user))
     print('\t'+str(db_password))
+    print('\t'+str(website))
     keep = False
     right = input('\t\tIs everything right? (N)o or any other charactere: ')
     if right == 'N':
@@ -47,9 +49,10 @@ except Exception as e:
 (open('private/db_server', 'w')).write(db_server)
 (open('private/db_user', 'w')).write(db_user)
 (open('private/db_password', 'w')).write(db_password)
+(open('private/website', 'w')).write(website)
 
-print('\t'+str("Done!"))
-print('\t'+str("Now, insert your provider credentials"))
+print('\t' + 'Done!')
+print('\t' + 'Now, insert your provider credentials')
 
 keep = True
 while keep:
