@@ -2,10 +2,9 @@ import os
 import logging
 import zapi as monitorserver
 import awsapi as aws
+from datetime import datetime, timedelta
 from sendemail import (notregistered_email, availablevolume_email,
                        usernotfound_email)
-from datetime import datetime, timedelta
-from pprint import pprint
 
 # Setting Log File
 home = os.path.dirname(os.path.realpath(__file__))
@@ -161,7 +160,7 @@ for host in {host for host in hostsFromMonitorServer
         del hostsFromMonitorServer[host]
         try:
             emails = monitorserver.get_admins_email()
-            #usernotfound_email(emails, user)
+            usernotfound_email(emails, user)
         except (monitorserver.NotFoudException, KeyError) as e:
             logger.error("[AUDIT] Not registered user. " + user
                          + "Could not send email to admins: " + str(e))
@@ -279,7 +278,7 @@ for volume in volumesFromProviderAvailable:
         try:
             emails = monitorserver.get_admins_email()
             emails.append(monitorserver.get_user_email(volume['user']))
-            # availablevolume_email(emails, volume)
+            availablevolume_email(emails, volume)
         except monitorserver.NotFoudException as e:
             logger.error("[AUDIT] Volume available for too long " + volume
                          + ". Could not send email to admins and user "
