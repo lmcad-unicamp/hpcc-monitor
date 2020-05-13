@@ -61,36 +61,24 @@ def get_instance_family(type):
 
 
 # Get operating system of a platform
-def find_operatingsystem(instance_platform, image_name):
-    if instance_platform.find("Linux") != -1:
+def find_operatingsystem(instance_platform):
+    if instance_platform.find("Linux/UNIX") != -1:
         return "Linux"
-    elif instance_platform.find("Ubuntu") != -1:
-        return "Linux"
-    elif instance_platform.find("CentOS") != -1:
-        return "Linux"
-    elif instance_platform.find("Windows") != -1:
-        return "Windows"
     elif instance_platform.find("Red Hat") != -1:
         return "RHEL"
     elif instance_platform.find("SUSE") != -1:
         return "SUSE"
+    elif instance_platform.find("Windows") != -1:
+        return "Windows"
     else:
-        if image_name.find("Linux") != -1:
-            return "Linux"
-        elif image_name.find("Ubuntu") != -1:
-            return "Linux"
-        elif image_name.find("ubuntu") != -1:
-            return "Linux"
-        elif image_name.find("CentOS") != -1:
-            return "Linux"
-        elif image_name.find("Windows") != -1:
-            return "Windows"
-        elif image_name.find("Red Hat") != -1:
-            return "RHEL"
-        elif image_name.find("SUSE") != -1:
-            return "SUSE"
-        else:
-            return "NA"
+        return "NA"
+
+# Get license model of a platform
+def find_licensemodel(instance_platform):
+    if instance_platform.find("BYOL") != -1:
+        return "Bring your own license"
+    else:
+        return "No License required"
 
 
 # Get pre installed software of a platform
@@ -233,21 +221,13 @@ def get_instance_pricing(region, instance_info=None, instance_id=None):
         preinstalled_sw = 'NA'
         license_model = 'No License required'
     else:
-        # Find operating system based on description of the image
+        # Find operating system, licesen model and pre installed softwares
         operating_system = find_operatingsystem(image['Images'][0]
-                                                ['Description'],
-                                                image['Images'][0]['Name'])
-        # If the operating system is Windows, it requires a License
-        # This is not properly programmed
-        if operating_system == 'Windows':
-            # Missing Bring Your Own License
-            license_model = 'No License required'
-        else:
-            license_model = 'No License required'
-
-        # Find pre-isntalled software based on description of the image
+                                                ['PlatformDetails'])
+        license_model = find_licensemodel(image['Images'][0]
+                                                ['PlatformDetails'])
         preinstalled_sw = find_preinstalledsoftware(image['Images'][0]
-                                                    ['Description'])
+                                                    ['PlatformDetails'])
 
     # Since we are using the instance, the capacity status is Used
     capacity_status = 'Used'
@@ -329,7 +309,7 @@ def get_instance_pricing(region, instance_info=None, instance_id=None):
 
         except (KeyError, IndexError) as e:
             logger.error("[AWS] [get_instance_pricing] Price not found for "
-                         + "volume " + instance_id + ": " + str(e))
+                         + "instance " + instance_id + ": " + str(e))
             return
     else:
         logger.error("[AWS] [get_instance_pricing] Capacity Reservation "
@@ -389,8 +369,7 @@ def get_spotinstance_pricing(region, instance_info=None, instance_id=None,
     else:
         # Find operating system based on description of the image
         operating_system = find_operatingsystem(image['Images'][0]
-                                                ['Description'],
-                                                image['Images'][0]['Name'])
+                                                ['PlatformDetails'])
 
     # Get the last spot price based on instance type and region
     price = client.describe_spot_price_history(
@@ -472,11 +451,11 @@ def print_prices(products):
 
 
 # Get volumes from AWS
-def get_volumes(pricing=False):
+def get_volumes(pricing=False, ignore=None):
     volumes = []
     # For each region, we ask to the AWS API for volumes
-    for region in ['us-east-2']:
-    # for region in regions:
+    #for region in ['us-east-2']:
+    for region in regions:
         try:
             client = boto.client('ec2', region_name=region,
                                  aws_access_key_id=ACCESS_ID,
@@ -488,13 +467,16 @@ def get_volumes(pricing=False):
             # For each instance, we get attributes from the it
             for volume in [i for i in clientvolumes['Volumes']]:
                 v = {}
+
                 tags = {item['Key']: item['Value'] for item in volume['Tags']}
+
+                # Ignore instances with tags to ignore (argument)
+                if 'tags' in ignore:
+                    if [True for t in ignore['tags']
+                       if t in tags and tags[t] in ignore['tags'][t]]:
+                        continue
+
                 v['user'] = tags['owner']
-                if ('monitorignore' in tags
-                        and tags['monitorignore'] in ['true', 'True']):
-                    v['monitorignore'] = True
-                else:
-                    v['monitorignore'] = False
                 v['attachments'] = None
                 for a in volume['Attachments']:
                     if a['State'] == 'attached':
@@ -521,8 +503,8 @@ def get_volumes(pricing=False):
 def get_instances(pricing=False, ignore=None):
     instances = []
     # For each region, we ask to the AWS API for instances
-    for region in ['us-east-1', 'us-east-2']:
-    # for region in regions:
+    #for region in ['us-east-1', 'us-east-2']:
+    for region in regions:
         try:
             client = boto.client('ec2', region_name=region,
                                  aws_access_key_id=ACCESS_ID,

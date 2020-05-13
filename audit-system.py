@@ -2,6 +2,7 @@ import os
 import logging
 import zapi as monitorserver
 import awsapi as aws
+from pprint import pprint
 from datetime import datetime, timedelta
 from sendemail import (notregistered_email, availablevolume_email,
                        usernotfound_email)
@@ -37,7 +38,8 @@ instances = aws.get_instances(ignore={'tags': {'monitorignore':
                                                ['True', 'true']},
                                       'state': ['terminated',
                                                 'shutting-down']})
-volumes = aws.get_volumes()
+volumes = aws.get_volumes(ignore={'tags': {'monitorignore':
+                                           ['True', 'true']}})
 
 hostsFromProvider = {}
 hostsFromProviderStopped = {}
@@ -79,8 +81,6 @@ for instance in instances:
 volumesFromProvider = []
 volumesFromProviderAvailable = []
 for volume in volumes:
-    if volume['monitorignore']:
-        continue
     if volume['provider'] in ['aws']:
         if volume['user'] in users:
             if volume['state'] in ['in-use']:
@@ -232,19 +232,19 @@ for host in [x for x in hostsFromProvider if x not in hostsFromMonitorServer]:
             > NOTREGISTERED_INSTANCES_TIME_TO_NOTIFY):
         try:
             emails = monitorserver.get_admins_email()
-            emails.append(monitorserver.get_user_email(hostsFromMonitorServer[
+            emails.append(monitorserver.get_user_email(hostsFromProvider[
                                                         host]['user']))
             notregistered_email(emails, host)
         except monitorserver.NotFoudException as e:
             logger.error("[AUDIT] Not registered host " + host
                          + ". Could not send email to admins and user "
-                         + hostsFromMonitorServer[host]['user'] + ": "
+                         + hostsFromProvider[host]['user'] + ": "
                          + str(e))
         else:
             newNotregisteredInstances.append(host + ',' + str(NOW))
             logger.info("[AUDIT] This instance is not registered: "
                         + host + ". Sending email to admins and user "
-                        + hostsFromMonitorServer[host]['user'])
+                        + hostsFromProvider[host]['user'])
     else:
         newNotregisteredInstances.append(host + ','
                                          + str(notregisteredInstances[host]))
@@ -278,9 +278,10 @@ for volume in volumesFromProviderAvailable:
         try:
             emails = monitorserver.get_admins_email()
             emails.append(monitorserver.get_user_email(volume['user']))
-            availablevolume_email(emails, volume)
+            availablevolume_email(emails, volume['id'])
         except monitorserver.NotFoudException as e:
-            logger.error("[AUDIT] Volume available for too long " + volume
+            logger.error("[AUDIT] Volume available for too long "
+                         + volume['id']
                          + ". Could not send email to admins and user "
                          + volume['user']
                          + ": " + str(e))
