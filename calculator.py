@@ -2,7 +2,7 @@ import logging
 import os
 import zapi as monitorserver
 from wastageapi import HistoryWastage
-from datetime import datetime, timezone
+from datetime import datetime
 from sendemail import quotaexceeded_email
 
 HEURISTIC = 'heuristic-1'
@@ -29,7 +29,7 @@ logger.addHandler(fh)
 logger.addHandler(ch)
 
 HISTORY_ITEMS_FILE = home+"/files/history.items"
-NOW = int(datetime.timestamp(datetime.utcnow().replace(tzinfo=timezone.utc)))
+NOW = int(datetime.timestamp(datetime.utcnow().astimezone(pytz.utc)))
 
 # Get hosts from Monitor Server
 hostsFromMonitorServer = monitorserver.get_hosts(

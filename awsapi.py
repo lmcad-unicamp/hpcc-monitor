@@ -7,6 +7,7 @@ import boto3 as boto
 import botocore
 from pprint import pprint
 from datetime import datetime
+import pytz
 
 home = os.path.dirname(os.path.realpath(__file__))
 logger = logging.getLogger(str(inspect.getouterframes(inspect.currentframe()
@@ -72,6 +73,7 @@ def find_operatingsystem(instance_platform):
         return "Windows"
     else:
         return "NA"
+
 
 # Get license model of a platform
 def find_licensemodel(instance_platform):
@@ -225,7 +227,7 @@ def get_instance_pricing(region, instance_info=None, instance_id=None):
         operating_system = find_operatingsystem(image['Images'][0]
                                                 ['PlatformDetails'])
         license_model = find_licensemodel(image['Images'][0]
-                                                ['PlatformDetails'])
+                                               ['PlatformDetails'])
         preinstalled_sw = find_preinstalledsoftware(image['Images'][0]
                                                     ['PlatformDetails'])
 
@@ -319,8 +321,7 @@ def get_instance_pricing(region, instance_info=None, instance_id=None):
 
 
 # Get the price of a spot instance
-def get_spotinstance_pricing(region, instance_info=None, instance_id=None,
-                             ondemand=True):
+def get_spotinstance_pricing(region, instance_info=None, instance_id=None):
     try:
         client = boto.client('ec2', region_name=region,
                              aws_access_key_id=ACCESS_ID,
@@ -335,12 +336,8 @@ def get_spotinstance_pricing(region, instance_info=None, instance_id=None,
     # If a instance id is used, request client.describe_instance for infos
     elif instance_id:
         try:
-            if ondemand:
-                instance_info = client.describe_instances(
-                                        InstanceIds=[instance_id])
-            else:
-                instance_info = client.describe_reserved_instances(
-                                        ReservedInstancesIds=[instance_id])
+            instance_info = client.describe_instances(
+                                                    InstanceIds=[instance_id])
         except botocore.exceptions.ClientError as e:
             logger.error("[AWS] [get_spotinstance_pricing] Instance could not "
                          + "found " + instance_id + ": " + str(e))
@@ -382,7 +379,6 @@ def get_spotinstance_pricing(region, instance_info=None, instance_id=None,
     if not price['SpotPriceHistory']:
         logger.error("[AWS] [get_instance_pricing] Price not found for "
                      + "instance " + instance_id)
-        return
     else:
         # If there is no product with these attributes
         # It is returned prices for each platform, just need to find which one
@@ -411,7 +407,7 @@ def get_spotinstance_pricing(region, instance_info=None, instance_id=None,
             logger.error("[AWS] [get_spotinstance_pricing] Could not find "
                          + "a platform that matches. Instance: "
                          + str(instance_id))
-            return
+    return
 
 
 # Print the pricing list of a list of product
@@ -450,8 +446,26 @@ def print_prices(products):
                                   )[i]["priceDimensions"].values()[j]["unit"])
 
 
+def get_last_deattachment(region, volume):
+    try:
+        client = boto.client('cloudtrail', region_name=region,
+                             aws_access_key_id=ACCESS_ID,
+                             aws_secret_access_key=SECRET_KEY)
+    except botocore.exceptions.ClientError as e:
+        logger.error("[AWS] [get_last_attachment] Could not get history of"
+                     + " volume " + volume + ": " + str(e))
+    else:
+        events = client.lookup_events(LookupAttributes=[{
+                                            'AttributeKey': 'ResourceName',
+                                            'AttributeValue': volume
+                                            }])
+        for e in events['Events']:
+            if e['EventName'] == 'DetachVolume':
+                return e['EventTime'].astimezone(pytz.utc)
+
+
 # Get volumes from AWS
-def get_volumes(pricing=False, ignore=None):
+def get_volumes(pricing=False, ignore={}):
     volumes = []
     # For each region, we ask to the AWS API for volumes
     #for region in ['us-east-2']:
@@ -483,11 +497,13 @@ def get_volumes(pricing=False, ignore=None):
                         v['attachments'] = {}
                         v['attachments']['device'] = a['Device']
                         v['attachments']['instance'] = a['InstanceId']
-                        v['attachments']['time'] = a['AttachTime'].replace(
-                                                                tzinfo=None)
+                        v['attachments']['time'] = a['AttachTime'].astimezone(
+                                                                    pytz.utc)
+                v['deattachment'] = get_last_deattachment(region,
+                                                          volume['VolumeId'])
                 v['id'] = volume['VolumeId']
                 v['type'] = volume['VolumeType']
-                v['launchtime'] = volume['CreateTime'].replace(tzinfo=None)
+                v['launchtime'] = volume['CreateTime'].astimezone(pytz.utc)
                 v['state'] = volume['State']
                 v['price'] = None
                 if pricing:
@@ -500,8 +516,9 @@ def get_volumes(pricing=False, ignore=None):
 
 # Get instances from AWS
 # if you want to ignore some hosts, just add ignore argument is a dict
-def get_instances(pricing=False, ignore=None):
+def get_instances(pricing=False, ignore={}):
     instances = []
+
     # For each region, we ask to the AWS API for instances
     #for region in ['us-east-1', 'us-east-2']:
     for region in regions:
@@ -545,21 +562,30 @@ def get_instances(pricing=False, ignore=None):
                 i['id'] = instance['InstanceId']
                 i['type'] = instance['InstanceType']
                 i['family'] = get_instance_family(instance['InstanceType'])
-                i['launchtime'] = instance['LaunchTime'].replace(tzinfo=None)
+                i['launchtime'] = instance['LaunchTime'].astimezone(pytz.utc)
+                i['provider'] = 'aws'
+
                 # The region comes like 'us-east-1b',
                 # we use regex to eliminate the final character
                 i['region'] = re.sub(r'\D$', '',
                                      instance['Placement']['AvailabilityZone'])
+
+                # Get price
                 i['price'] = None
-                i['provider'] = 'aws'
                 if pricing:
-                    if i['service'] == 'ondemand':
-                        i['price'] = get_instance_pricing(region,
+                    ignorepricing = False
+                    if 'price' in ignore:
+                        for p in ignore['price']:
+                            if i[p] in ignore['price'][p]:
+                                ignorepricing = True
+                    if not ignorepricing:
+                        if i['service'] == 'ondemand':
+                            i['price'] = get_instance_pricing(region,
                                                               instance_info
                                                               =instance)
-                    elif i['service'] == 'spot':
-                        i['price'] = get_spotinstance_pricing(region,
-                                                          instance_info
-                                                          =instance)
+                        elif i['service'] == 'spot':
+                            i['price'] = get_spotinstance_pricing(region,
+                                                                  instance_info
+                                                                  =instance)
                 instances.append(i)
     return instances

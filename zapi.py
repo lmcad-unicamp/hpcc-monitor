@@ -3,6 +3,7 @@ import os
 import re
 import inspect
 import pyzabbix
+from datetime import datetime
 
 home = os.path.dirname(os.path.realpath(__file__))
 logger = logging.getLogger(str(inspect.getouterframes(inspect.currentframe()
@@ -276,7 +277,9 @@ def get_hosts(output=None, filter=None, macros=None, triggers=None,
                     host['price'] = None
                 # Get launchtime
                 if '{$LAUNCHTIME}' in host['macros']:
-                    host['launchtime'] = host['macros']['{$LAUNCHTIME}']
+                    host['launchtime'] = datetime.strptime(
+                                            host['macros']['{$LAUNCHTIME}'],
+                                            '%Y-%m-%d %H:%M:%S %z')
                 else:
                     host['launchtime'] = None
 
@@ -427,12 +430,12 @@ def host_service_association(host):
 # Associate the host with its lunchtime
 def host_launchtime_association(host):
     macros = host['macros']
-
+    print(host)
     # If the LAUNCHTIME macro is not present, if not it is added
     if '{$LAUNCHTIME}' not in macros:
-        launchtime_string = str(host['launchtime'])
+        launchtime_string = host['launchtime'].strftime("%Y-%m-%d %H:%M:%S %z")
         host['macros_zabbix'].append({'macro': '{$LAUNCHTIME}',
-                                      'value': str(launchtime_string)})
+                                      'value': launchtime_string})
         host['macros']['{$LAUNCHTIME}'] = launchtime_string
         try:
             zapi.host.update(hostid=host['id_zabbix'],

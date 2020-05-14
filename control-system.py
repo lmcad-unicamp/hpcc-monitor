@@ -24,7 +24,10 @@ instances = aws.get_instances(pricing=True, ignore={
                                             'tags': {'monitorignore':
                                                      ['True', 'true']},
                                             'state': ['terminated',
-                                                      'shutting-down']})
+                                                      'shutting-down'],
+                                            'price': {'state':
+                                                      ['stopped', 'stopping']
+                                                      }})
 hostsFromProvider = {}
 hostsFromProviderStopped = {}
 hostsFromProviderUserNotRegistered = {}
@@ -97,6 +100,7 @@ for host in hostsFromMonitorServer:
     if host not in hostsFromProviderUserNotRegistered:
         monitorserver.host_user_association(hostsFromMonitorServer[host])
 
+print(hostsFromMonitorServer)
 # Associate the host with its provider, region, family, type, launchtime, price
 for host in hostsFromMonitorServer:
     monitorserver.host_provider_association(hostsFromMonitorServer[host])

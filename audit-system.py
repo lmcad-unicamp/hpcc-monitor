@@ -4,6 +4,7 @@ import zapi as monitorserver
 import awsapi as aws
 from pprint import pprint
 from datetime import datetime, timedelta
+import pytz
 from sendemail import (notregistered_email, availablevolume_email,
                        usernotfound_email)
 
@@ -24,11 +25,34 @@ STOPPED_INSTANCES_FILE = home+"/files/stopped-instances.hosts"
 NOTREGISTERED_INSTANCES_FILE = home+"/files/notregistered-instances.hosts"
 NOTREGISTERED_INSTANCES_TIME_TO_NOTIFY = timedelta(minutes=10)
 AVAILABLE_VOLUMES_FILE = home+"/files/available-volumes.hosts"
-AVAILABLE_VOLUMES_TIME_TO_NOTIFY = timedelta(weeks=1)
+AVAILABLE_VOLUMES_FIRST_TIME_TO_NOTIFY = timedelta(hours=3)
+AVAILABLE_VOLUMES_TIME_TO_NOTIFY = timedelta(days=4)
 NOTREGISTERED_USERS_FILE = home+"/files/notregistered-users.users"
 NOTREGISTERED_USERS_TIME_TO_NOTIFY = timedelta(minutes=30)
 STARTING_INSTANCES_TIME_TO_NOTIFY = timedelta(minutes=6)
-NOW = datetime.utcnow().replace(tzinfo=None)
+NOW = datetime.utcnow().astimezone(pytz.utc)
+
+
+# This function reads a history file
+def read_history_file(FILE_NAME):
+    objectsFromFile = []
+    if os.path.isfile(FILE_NAME):
+        objectsFromFile = (open(str(FILE_NAME), "r")).read().splitlines()
+    objects = {}
+    for object in [x.split(",") for x in objectsFromFile if x]:
+        objects[object[0]] = datetime.strptime(object[1],
+                                               '%Y-%m-%d %H:%M:%S %z')
+    return objects
+
+
+# This function writes into a history file
+def write_history_file(FILE_NAME, objects):
+    f = open(str(FILE_NAME), "w")
+    for object in objects:
+        f.write(str(object)+'\n')
+    f.close()
+
+
 
 # Get users from Monitor Server
 users = monitorserver.get_users()
@@ -101,6 +125,7 @@ for volume in volumes:
                                      'type': volume['type'],
                                      'region': volume['region'],
                                      'provider': volume['provider'],
+                                     'deattachment': volume['deattachment'],
                                      'launchtime': volume['launchtime'],
                                      'price': volume['price']
                                      })
@@ -131,15 +156,7 @@ for host in [x for x in hostsFromMonitorServer if x in hostsFromProvider]:
 
 # -----------------------------------------------------------------------------
 # Get not registered users from file
-notregisteredUsersFromFile = []
-if os.path.isfile(NOTREGISTERED_USERS_FILE):
-    notregisteredUsersFromFile = (open(str(NOTREGISTERED_USERS_FILE), "r")
-                                  ).read().splitlines()
-notregisteredUsers = {}
-for notregistered in [x.split(',') for x in notregisteredUsersFromFile]:
-    notregisteredUsers[notregistered[0]] = datetime.strptime(
-                                                        notregistered[1],
-                                                        '%Y-%m-%d %H:%M:%S.%f')
+notregisteredUsers = read_history_file(NOTREGISTERED_USERS_FILE)
 
 # Detect users using Monitoring System but not registered on the Monitor Server
 newNotregisteredUsers = []
@@ -154,9 +171,8 @@ for host in {host for host in hostsFromMonitorServer
     # If the admins have not been notified about user in the last notification
     # time period, we notify the admins
     if (user not in [x for x in notregisteredUsers]
-            or NOW - notregisteredUsers[user] >
-            NOTREGISTERED_USERS_TIME_TO_NOTIFY):
-        usersAlreadyNotified.append(user)
+            or (NOW - notregisteredUsers[user]
+                > NOTREGISTERED_USERS_TIME_TO_NOTIFY)):
         del hostsFromMonitorServer[host]
         try:
             emails = monitorserver.get_admins_email()
@@ -165,43 +181,38 @@ for host in {host for host in hostsFromMonitorServer
             logger.error("[AUDIT] Not registered user. " + user
                          + "Could not send email to admins: " + str(e))
         else:
-            newNotregisteredUsers.append(str(user) + ',' + str(NOW))
+            newNotregisteredUsers.append(str(user) + ',' +
+                                         + NOW.strftime(
+                                         "%Y-%m-%d %H:%M:%S %z"))
             logger.info("[AUDIT] This user is not registered: "
                         + user + ". Sending email to admins")
     else:
         newNotregisteredUsers.append(str(user) + ','
-                                     + str(notregisteredUsers[user]))
+                                     + notregisteredUsers[user].strftime(
+                                     "%Y-%m-%d %H:%M:%S %z"))
         del hostsFromMonitorServer[host]
 
 # Write file with not registered users
-f = open(str(NOTREGISTERED_USERS_FILE), "w")
-for notregistered in newNotregisteredUsers:
-    f.write(str(notregistered)+'\n')
-f.close()
+write_history_file(NOTREGISTERED_USERS_FILE, newNotregisteredUsers)
 
 
 # -----------------------------------------------------------------------------
 # Get stopped instances from file
-stoppedInstancesFromFile = []
-if os.path.isfile(STOPPED_INSTANCES_FILE):
-    stoppedInstancesFromFile = (open(str(STOPPED_INSTANCES_FILE), "r")
-                                ).read().splitlines()
-stoppedInstances = {}
-for stopped in [x.split(",") for x in stoppedInstancesFromFile if x]:
-    stoppedInstances[stopped[0]] = datetime.strptime(stopped[1],
-                                                     '%Y-%m-%d %H:%M:%S')
+stoppedInstances = read_history_file(NOTREGISTERED_INSTANCES_FILE)
 
-# Write the current stopped instances into the file
-f = open(str(STOPPED_INSTANCES_FILE), "w")
-for host in hostsFromProviderStopped:
-    f.write(hostsFromProviderStopped[host]['id'] + ','
-            + str(hostsFromProviderStopped[host]['launchtime'])+'\n')
-f.close()
 
 # Disable triggers of new stopped instances
+newStoppedInstances = []
 for host in hostsFromProviderStopped:
     if host in hostsFromMonitorServer and host not in stoppedInstances:
         monitorserver.host_triggers_disable(hostsFromMonitorServer[host])
+    newStoppedInstances.append(hostsFromProviderStopped[host]['id'] + ',' +
+                               hostsFromProviderStopped[host][
+                                                    'launchtime'].strftime(
+                                                    "%Y-%m-%d %H:%M:%S %z"))
+
+# Write the current stopped instances into the file
+write_history_file(STOPPED_INSTANCES_FILE, newStoppedInstances)
 
 # Enable triggers of instances that are not stopped anymore
 for host in stoppedInstances:
@@ -209,18 +220,8 @@ for host in stoppedInstances:
         monitorserver.host_triggers_enable(hostsFromMonitorServer[host])
 
 # -----------------------------------------------------------------------------
-
 # Get not registered instances from file
-notregisteredInstancesFromFile = []
-if os.path.isfile(NOTREGISTERED_INSTANCES_FILE):
-    notregisteredInstancesFromFile = (open(str(NOTREGISTERED_INSTANCES_FILE),
-                                           "r")).read().splitlines()
-notregisteredInstances = {}
-for notregistered in [x.split(',')
-                      for x in notregisteredInstancesFromFile if x]:
-    notregisteredInstances[notregistered[0]] = datetime.strptime(
-                                                        notregistered[1],
-                                                        '%Y-%m-%d %H:%M:%S.%f')
+notregisteredInstances = read_history_file(NOTREGISTERED_INSTANCES_FILE)
 
 # Detect instances that are not registered on the Monitor Server
 newNotregisteredInstances = []
@@ -228,8 +229,8 @@ for host in [x for x in hostsFromProvider if x not in hostsFromMonitorServer]:
     # If the admins and user have not been notified about this instance in the
     # last notification time period, we notify the admins and user
     if (host not in [x for x in notregisteredInstances]
-            or NOW - notregisteredInstances[host]
-            > NOTREGISTERED_INSTANCES_TIME_TO_NOTIFY):
+            or (NOW - notregisteredInstances[host]
+                > NOTREGISTERED_INSTANCES_TIME_TO_NOTIFY)):
         try:
             emails = monitorserver.get_admins_email()
             emails.append(monitorserver.get_user_email(hostsFromProvider[
@@ -241,35 +242,34 @@ for host in [x for x in hostsFromProvider if x not in hostsFromMonitorServer]:
                          + hostsFromProvider[host]['user'] + ": "
                          + str(e))
         else:
-            newNotregisteredInstances.append(host + ',' + str(NOW))
+            newNotregisteredInstances.append(host + ',' +
+                                             + NOW.strftime(
+                                              "%Y-%m-%d %H:%M:%S %z"))
             logger.info("[AUDIT] This instance is not registered: "
                         + host + ". Sending email to admins and user "
                         + hostsFromProvider[host]['user'])
     else:
         newNotregisteredInstances.append(host + ','
-                                         + str(notregisteredInstances[host]))
+                                         + notregisteredInstances[
+                                            host].strftime(
+                                            "%Y-%m-%d %H:%M:%S %z"))
 
 # Write file with not registered instances
-f = open(str(NOTREGISTERED_INSTANCES_FILE), "w")
-for notregistered in newNotregisteredInstances:
-    f.write(str(notregistered)+'\n')
-f.close()
+write_history_file(NOTREGISTERED_INSTANCES_FILE, newNotregisteredInstances)
 
 # -----------------------------------------------------------------------------
-
 # Get available volumes from file
-availableVolumesFromFile = []
-if os.path.isfile(AVAILABLE_VOLUMES_FILE):
-    availableVolumesFromFile = (open(str(AVAILABLE_VOLUMES_FILE), "r")
-                                ).read().splitlines()
-availableVolumes = {}
-for available in [x.split(',') for x in availableVolumesFromFile if x]:
-    availableVolumes[available[0]] = datetime.strptime(available[1],
-                                                       '%Y-%m-%d %H:%M:%S.%f')
+availableVolumes = read_history_file(AVAILABLE_VOLUMES_FILE)
 
 # Detect volumes that are available for too long
 nowAvailableVolumes = []
+pprint(volumesFromProviderAvailable)
 for volume in volumesFromProviderAvailable:
+    # If the volume has been deattached for a little while, ignore
+    if (volume['deattachment']
+        and NOW - volume['deattachment']
+            < AVAILABLE_VOLUMES_FIRST_TIME_TO_NOTIFY):
+        continue
     # If the admins and user have not been notified about this volume in the
     # last notification time period, we notify the admins and user
     if (volume['id'] not in [x for x in availableVolumes]
@@ -286,16 +286,15 @@ for volume in volumesFromProviderAvailable:
                          + volume['user']
                          + ": " + str(e))
         else:
-            nowAvailableVolumes.append(volume['id'] + ',' + str(NOW))
+            nowAvailableVolumes.append(volume['id'] + ','
+                                       + NOW.strftime("%Y-%m-%d %H:%M:%S %z"))
             logger.info("[AUDIT] This volume is available for too long: "
                         + volume['id'] + ". Sending email to admins and user "
                         + volume['user'])
     else:
         nowAvailableVolumes.append(volume['id'] + ','
-                                   + str(availableVolumes[volume['id']]))
+                                   + availableVolumes[volume['id']].strftime(
+                                   "%Y-%m-%d %H:%M:%S %z"))
 
 # Write file with available volumes
-f = open(str(AVAILABLE_VOLUMES_FILE), "w")
-for available in nowAvailableVolumes:
-    f.write(str(available)+'\n')
-f.close()
+write_history_file(AVAILABLE_VOLUMES_FILE, nowAvailableVolumes)
