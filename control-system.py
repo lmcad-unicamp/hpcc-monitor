@@ -100,7 +100,6 @@ for host in hostsFromMonitorServer:
     if host not in hostsFromProviderUserNotRegistered:
         monitorserver.host_user_association(hostsFromMonitorServer[host])
 
-print(hostsFromMonitorServer)
 # Associate the host with its provider, region, family, type, launchtime, price
 for host in hostsFromMonitorServer:
     monitorserver.host_provider_association(hostsFromMonitorServer[host])

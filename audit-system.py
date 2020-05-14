@@ -197,16 +197,15 @@ write_history_file(NOTREGISTERED_USERS_FILE, newNotregisteredUsers)
 
 # -----------------------------------------------------------------------------
 # Get stopped instances from file
-stoppedInstances = read_history_file(NOTREGISTERED_INSTANCES_FILE)
-
+stoppedInstances = read_history_file(STOPPED_INSTANCES_FILE)
 
 # Disable triggers of new stopped instances
 newStoppedInstances = []
 for host in hostsFromProviderStopped:
     if host in hostsFromMonitorServer and host not in stoppedInstances:
         monitorserver.host_triggers_disable(hostsFromMonitorServer[host])
-    newStoppedInstances.append(hostsFromProviderStopped[host]['id'] + ',' +
-                               hostsFromProviderStopped[host][
+    newStoppedInstances.append(hostsFromProviderStopped[host]['id'] + ','
+                               + hostsFromProviderStopped[host][
                                                     'launchtime'].strftime(
                                                     "%Y-%m-%d %H:%M:%S %z"))
 
