@@ -75,6 +75,7 @@ hostsFromMonitorServer = monitorserver.get_hosts(
                                         filter={'status': '0'},
                                         macros=['macro', 'value'],
                                         templates=['templateid', 'name'],
+                                        items=['itemid', 'key_', 'value_type'],
                                         groups=['groupsid', 'name']
                                         )
 

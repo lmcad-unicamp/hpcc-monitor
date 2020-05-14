@@ -3,12 +3,14 @@ import os
 import re
 import inspect
 import pyzabbix
+import pytz
 from datetime import datetime
 
 home = os.path.dirname(os.path.realpath(__file__))
 logger = logging.getLogger(str(inspect.getouterframes(inspect.currentframe()
                                                       )[-1].filename))
 
+NOW = int(datetime.timestamp(datetime.utcnow().astimezone(pytz.utc)))
 IPSERVER = (open(home+"/private/ip_server", "r")).read().strip('\n')
 ZABBIX_USER = (open(home+"/private/zabbix_user", "r")).read().strip('\n')
 ZABBIX_PASSWORD = (open(home+"/private/zabbix_password", "r")
@@ -453,14 +455,11 @@ def host_launchtime_association(host):
 # Update the price of a host
 def host_update_instance_price(host):
     macros = host['macros']
-    print(macros)
     changed = False
     # If the price not found
     if host['price']:
-        print("TEM PRECO")
         # If the PRICE macro is present
         if '{$PRICE}' in macros:
-            print("TEM MACRO PRECO")
             # Check its consistency, if it is different we update the macro
             if float(macros['{$PRICE}']) != float(host['price']):
                 lastprice = macros['{$PRICE}']
@@ -476,7 +475,6 @@ def host_update_instance_price(host):
                                  + lastprice + " -> " + str(host['price']))
         # If the PRICE is not present, we add it
         else:
-            print("NAO TEM MACRO PRECO")
             host['macros_zabbix'].append({'macro': '{$PRICE}',
                                           'value': str(host['price'])})
             host['macros']['{$PRICE}'] = host['price']
@@ -499,6 +497,12 @@ def host_update_instance_price(host):
             else:
                 logger.info(loggerMessage)
 
+        history_price = get_history(host=host, itemkey='cloud.price',
+                                    since=0, till=NOW)
+        if not history_price:
+            os.system("zabbix_sender -z " + str(IPSERVER) + " -s "
+                      + host['id'] + " -k cloud.price -o "
+                      + str(host['price']))
 
 # Update type of a host
 def host_update_type(host):
