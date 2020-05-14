@@ -15,7 +15,7 @@ def send_email(emails, subject, message):
     msg['Subject'] = subject
     msg['From'] = EMAIL_USER
     msg['To'] = emails
-    #s.sendmail(EMAIL_USER, emails, msg.as_string())
+    s.sendmail(EMAIL_USER, emails, msg.as_string())
     s.close()
 
 
