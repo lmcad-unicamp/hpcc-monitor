@@ -53,7 +53,6 @@ def write_history_file(FILE_NAME, objects):
     f.close()
 
 
-
 # Get users from Monitor Server
 users = monitorserver.get_users()
 
@@ -263,7 +262,6 @@ availableVolumes = read_history_file(AVAILABLE_VOLUMES_FILE)
 
 # Detect volumes that are available for too long
 nowAvailableVolumes = []
-pprint(volumesFromProviderAvailable)
 for volume in volumesFromProviderAvailable:
     # If the volume has been deattached for a little while, ignore
     if (volume['deattachment']

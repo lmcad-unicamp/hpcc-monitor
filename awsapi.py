@@ -8,6 +8,9 @@ import botocore
 from pprint import pprint
 from datetime import datetime
 import pytz
+import time
+from joblib import Parallel, delayed
+import multiprocessing
 
 home = os.path.dirname(os.path.realpath(__file__))
 logger = logging.getLogger(str(inspect.getouterframes(inspect.currentframe()
@@ -326,7 +329,6 @@ def get_spotinstance_pricing(region, instance_info=None, instance_id=None):
         client = boto.client('ec2', region_name=region,
                              aws_access_key_id=ACCESS_ID,
                              aws_secret_access_key=SECRET_KEY)
-
     except botocore.exceptions.ClientError:
         return
 
@@ -410,42 +412,7 @@ def get_spotinstance_pricing(region, instance_info=None, instance_id=None):
     return
 
 
-# Print the pricing list of a list of product
-def print_prices(products):
-    for product in [eval(x) for x in products["PriceList"]]:
-        pprint(product["product"]["attributes"]["instanceType"] + " "
-               + product["product"]["attributes"]["location"] + " - "
-               + product["product"]["attributes"]["operatingSystem"] + " - "
-               + product["product"]["attributes"]["preInstalledSw"] + " - "
-               + product["product"]["attributes"]["licenseModel"] + "      "
-               + product["product"]["attributes"]["capacitystatus"] + " - "
-               + product["product"]["attributes"]["tenancy"] + " "
-               + list(product["terms"]["OnDemand"].values()
-                      )[0]["priceDimensions"].values(
-                      )[0]["pricePerUnit"]["USD"] + " "
-               + list(product["terms"]["OnDemand"].values()
-                      )[0]["priceDimensions"].values()[0]["unit"]
-               )
-        if len(product["terms"].values()) > 1:
-            for i in range(len(list(product["terms"]["Reserved"].values()))):
-                pprint("                                "
-                       + list(product["terms"]["Reserved"].values()
-                              )[i]["termAttributes"]["LeaseContractLength"]
-                       + " "
-                       + list(product["terms"]["Reserved"].values()
-                              )[i]["termAttributes"]["OfferingClass"] + " "
-                       + list(product["terms"]["Reserved"].values()
-                              )[i]["termAttributes"]["PurchaseOption"])
-                for j in range(len(list(product["terms"]["Reserved"].values()
-                                        )[i]["priceDimensions"].values())):
-                    pprint("                                                  "
-                           + list(product["terms"]["Reserved"].values()
-                                  )[i]["priceDimensions"].values(
-                                  )[j]["pricePerUnit"]["USD"] + " "
-                           + list(product["terms"]["Reserved"].values()
-                                  )[i]["priceDimensions"].values()[j]["unit"])
-
-
+# Get the last deattachment of a volume
 def get_last_deattachment(region, volume):
     try:
         client = boto.client('cloudtrail', region_name=region,
@@ -464,11 +431,10 @@ def get_last_deattachment(region, volume):
                 return e['EventTime'].astimezone(pytz.utc)
 
 
-# Get volumes from AWS
-def get_volumes(pricing=False, ignore={}):
+# Get volumes from AWS in sequential
+def get_volumes_sequential(pricing=False, ignore={}):
     volumes = []
     # For each region, we ask to the AWS API for volumes
-    #for region in ['us-east-2']:
     for region in regions:
         try:
             client = boto.client('ec2', region_name=region,
@@ -514,13 +480,79 @@ def get_volumes(pricing=False, ignore={}):
     return volumes
 
 
-# Get instances from AWS
-# if you want to ignore some hosts, just add ignore argument is a dict
-def get_instances(pricing=False, ignore={}):
-    instances = []
+# Get volumes from AWS in parallel
+def get_volumes_parallel(region_i, volumes, region,
+                         pricing=False, ignore={}):
+    volumes[region_i] = []
+    try:
+        client = boto.client('ec2', region_name=region,
+                             aws_access_key_id=ACCESS_ID,
+                             aws_secret_access_key=SECRET_KEY)
+        clientvolumes = client.describe_volumes()
+    except botocore.exceptions.ClientError:
+        pass
+    else:
+        # For each instance, we get attributes from the it
+        for volume in [i for i in clientvolumes['Volumes']]:
+            v = {}
 
+            tags = {item['Key']: item['Value'] for item in volume['Tags']}
+
+            # Ignore instances with tags to ignore (argument)
+            if 'tags' in ignore:
+                if [True for t in ignore['tags']
+                   if t in tags and tags[t] in ignore['tags'][t]]:
+                    continue
+
+            v['user'] = tags['owner']
+            v['attachments'] = None
+            for a in volume['Attachments']:
+                if a['State'] == 'attached':
+                    v['attachments'] = {}
+                    v['attachments']['device'] = a['Device']
+                    v['attachments']['instance'] = a['InstanceId']
+                    v['attachments']['time'] = a['AttachTime'].astimezone(
+                                                                pytz.utc)
+            v['deattachment'] = get_last_deattachment(region,
+                                                      volume['VolumeId'])
+            v['id'] = volume['VolumeId']
+            v['type'] = volume['VolumeType']
+            v['launchtime'] = volume['CreateTime'].astimezone(pytz.utc)
+            v['state'] = volume['State']
+            v['price'] = None
+            if pricing:
+                v['price'] = get_volume_pricing(region, volume_info=volume)
+            v['region'] = re.sub(r'\D$', '', volume['AvailabilityZone'])
+            v['provider'] = 'aws'
+            volumes[region_i].append(v)
+    return volumes[region_i]
+
+
+# Get volumes from AWS
+# if you want to ignore some hosts, just add ignore argument is a dict
+def get_volumes(pricing=False, ignore={}, mode='parallel'):
+    if mode == 'parallel':
+        volumes = [[] for x in range(len(regions))]
+        num_cores = multiprocessing.cpu_count()
+        results = Parallel(n_jobs=num_cores)(
+                           delayed(get_volumes_parallel)(
+                                    i, volumes, [x for x in regions][i],
+                                    pricing=pricing, ignore=ignore
+                                    ) for i in range(len(volumes)))
+        volumes = []
+        for r in results:
+            volumes.extend(r)
+    elif mode == 'sequential':
+        volumes = get_volumes_sequential(pricing=pricing, ignore=ignore)
+
+    return volumes
+
+
+# Get instances from AWS in sequential
+# if you want to ignore some hosts, just add ignore argument is a dict
+def get_instances_sequential(pricing=False, ignore={}):
+    instances = []
     # For each region, we ask to the AWS API for instances
-    #for region in ['us-east-1', 'us-east-2']:
     for region in regions:
         try:
             client = boto.client('ec2', region_name=region,
@@ -588,4 +620,97 @@ def get_instances(pricing=False, ignore={}):
                                                                   instance_info
                                                                   =instance)
                 instances.append(i)
+    return instances
+
+
+# Get the instances in parallel
+def get_instances_parallel(region_i, instances, region,
+                           pricing=False, ignore={}):
+    instances[region_i] = []
+    try:
+        client = boto.client('ec2', region_name=region,
+                             aws_access_key_id=ACCESS_ID,
+                             aws_secret_access_key=SECRET_KEY)
+        clientinstances = client.describe_instances()
+    except botocore.exceptions.ClientError:
+        pass
+    else:
+        # For each instance, we get attributes from the it
+        for instance in [i['Instances'][0]
+                         for i in clientinstances['Reservations']]:
+            i = {}
+
+            # Get the state of the instance
+            i['state'] = instance['State']['Name']
+            # Ignore instances with states to ignore (argument)
+            if 'state' in ignore and i['state'] in ignore['state']:
+                continue
+
+            # Get tags from instance
+            tags = {item['Key']: item['Value']
+                    for item in instance['Tags']}
+
+            # Ignore instances with tags to ignore (argument)
+            if 'tags' in ignore:
+                if [True for t in ignore['tags']
+                   if t in tags and tags[t] in ignore['tags'][t]]:
+                    continue
+
+            # If it is spot
+            if 'SpotInstanceRequestId' in instance:
+                i['service'] = 'spot'
+                i['service_id'] = instance['SpotInstanceRequestId']
+            else:
+                i['service'] = 'ondemand'
+                i['service_id'] = instance['InstanceId']
+            i['user'] = tags['owner']
+            i['id'] = instance['InstanceId']
+            i['type'] = instance['InstanceType']
+            i['family'] = get_instance_family(instance['InstanceType'])
+            i['launchtime'] = instance['LaunchTime'].astimezone(pytz.utc)
+            i['provider'] = 'aws'
+
+            # The region comes like 'us-east-1b',
+            # we use regex to eliminate the final character
+            i['region'] = re.sub(r'\D$', '',
+                                 instance['Placement']['AvailabilityZone'])
+
+            # Get price
+            i['price'] = None
+            if pricing:
+                ignorepricing = False
+                if 'price' in ignore:
+                    for p in ignore['price']:
+                        if i[p] in ignore['price'][p]:
+                            ignorepricing = True
+                if not ignorepricing:
+                    if i['service'] == 'ondemand':
+                        i['price'] = get_instance_pricing(region,
+                                                          instance_info=
+                                                          instance)
+                    elif i['service'] == 'spot':
+                        i['price'] = get_spotinstance_pricing(region,
+                                                              instance_info=
+                                                              instance)
+            instances[region_i].append(i)
+    return instances[region_i]
+
+
+# Get instances from AWS
+# if you want to ignore some hosts, just add ignore argument is a dict
+def get_instances(pricing=False, ignore={}, mode='parallel'):
+    if mode == 'parallel':
+        instances = [[] for x in range(len(regions))]
+        num_cores = multiprocessing.cpu_count()
+        results = Parallel(n_jobs=num_cores)(
+                           delayed(get_instances_parallel)(
+                                    i, instances, [x for x in regions][i],
+                                    pricing=pricing, ignore=ignore
+                                    ) for i in range(len(instances)))
+        instances = []
+        for r in results:
+            instances.extend(r)
+    elif mode == 'sequential':
+        instances = get_instances_sequential(pricing=pricing, ignore=ignore)
+
     return instances
