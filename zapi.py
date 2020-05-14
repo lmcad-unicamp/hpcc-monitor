@@ -453,12 +453,14 @@ def host_launchtime_association(host):
 # Update the price of a host
 def host_update_instance_price(host):
     macros = host['macros']
-
+    print(macros)
     changed = False
     # If the price not found
     if host['price']:
+        print("TEM PRECO")
         # If the PRICE macro is present
         if '{$PRICE}' in macros:
+            print("TEM MACRO PRECO")
             # Check its consistency, if it is different we update the macro
             if float(macros['{$PRICE}']) != float(host['price']):
                 lastprice = macros['{$PRICE}']
@@ -474,6 +476,7 @@ def host_update_instance_price(host):
                                  + lastprice + " -> " + str(host['price']))
         # If the PRICE is not present, we add it
         else:
+            print("NAO TEM MACRO PRECO")
             host['macros_zabbix'].append({'macro': '{$PRICE}',
                                           'value': str(host['price'])})
             host['macros']['{$PRICE}'] = host['price']
@@ -648,7 +651,7 @@ def get_history(host, itemkey=None, itemid=None, since=None, till=None,
     try:
         values = zapi.history.get(itemids=itemid,
                                   history=host['items'][itemkey]['value_type'],
-                                  time_from=since,
+                                  time_from=since+1,
                                   time_till=till,
                                   sortorder='DESC',
                                   output=output)

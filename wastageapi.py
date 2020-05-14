@@ -34,6 +34,8 @@ class HistoryWastage:
             except json.decoder.JSONDecodeError:
                 pass
 
+        pprint(self.history_wastage)
+
         # Get user wastage and quota from database
         self.users = {}
         cursor.execute("SELECT * FROM User_Wastage")
@@ -61,7 +63,7 @@ class HistoryWastage:
                            + ",Month="+str(self.users[user]['month'])
                            + " WHERE UserName=\'" + user
                            + "\'")
-            con.commit()
+            #con.commit()
 
     # Get history of wastage
     def get_history(self):
@@ -107,17 +109,19 @@ class HistoryWastage:
         return self.history_wastage[host]
 
     # Set wastage of a host
-    def set_host_wastage(self, host, wastage):
-        self.history_wastage[host]['wastage'] = wastage
+    def set_host_wastage(self, host, heuristic, wastage):
+        self.history_wastage[host][heuristic]['wastage'] = wastage
 
     # Get wastage of a host
-    def get_host_wastage(self, host):
-        return self.history_wastage[host]['wastage']
+    def get_host_wastage(self, host, heuristic):
+        return self.history_wastage[host][heuristic]['wastage']
 
     # Set a heuristic for host if it exists:
     def set_heuristic(self, host, heuristic):
         if heuristic not in self.history_wastage[host]:
             self.history_wastage[host][heuristic] = {}
+            self.history_wastage[host][heuristic]['wastage'] = 0.0
+
 
     # Get the last timestamp of price of host
     def get_price_timestamp(self, host):
@@ -125,6 +129,12 @@ class HistoryWastage:
             return self.history_wastage[host]['prices']['timestamps'][-1]
         else:
             return 0
+
+    # Check if ther is any price history on host
+    def has_price(self, host):
+        if len(self.history_wastage[host]['prices']['values']) > 0:
+            return True
+        return False
 
     # Get price of the host in a specific timestamp
     def find_price(self, host, timestamp):

@@ -28,6 +28,7 @@ instances = aws.get_instances(pricing=True, ignore={
                                             'price': {'state':
                                                       ['stopped', 'stopping']
                                                       }})
+
 hostsFromProvider = {}
 hostsFromProviderStopped = {}
 hostsFromProviderUserNotRegistered = {}
@@ -38,7 +39,16 @@ for instance in instances:
         if instance['state'] in ['stopped', 'stopping']:
             if instance['user'] in users:
                 hostsFromProviderStopped[instance['id']] = {
-                                        'id': instance['id']
+                                        'id': instance['id'],
+                                        'user': instance['user'],
+                                        'type': instance['type'],
+                                        'family': instance['family'],
+                                        'provider': instance['provider'],
+                                        'region': instance['region'],
+                                        'service': instance['service'],
+                                        'service_id': instance['service_id'],
+                                        'price': instance['price'],
+                                        'launchtime': instance['launchtime']
                                         }
         # If the instance is running
         elif instance['state'] in ['running', 'pending']:

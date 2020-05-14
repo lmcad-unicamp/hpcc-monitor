@@ -5,6 +5,7 @@ import pytz
 from wastageapi import HistoryWastage
 from datetime import datetime
 from sendemail import quotaexceeded_email
+from pprint import pprint
 
 HEURISTIC = 'heuristic-1'
 
@@ -69,6 +70,11 @@ for host in hostsFromMonitorServer:
 
 # For each host, calculate wastage
 for host in hostsFromMonitorServer:
+    # If the host does not have price, we cannot calculate wastage
+    if not history.has_price(host):
+        logger.error("[CALCULATOR] The host " + host + " does not have price")
+        continue
+
     history.set_heuristic(host, HEURISTIC)
 
     # In this heuristic, each family of instances has a specific item to look
@@ -118,14 +124,17 @@ for host in hostsFromMonitorServer:
             history.set_item_history(host, HEURISTIC, item, item_history)
 
             # Get the wastage of the host and sum with the wastage calculated
-            host_wastage_calculated = history.get_host_wastage(host)
-            host_wastage_calculated = (host_wastage_calculated
-                                       + item_wastage_calculated)
-            history.set_host_wastage(host, host_wastage_calculated)
+            host__heuristic_wastage_calculated = history.get_host_wastage(
+                                                            host, HEURISTIC)
+            host__heuristic_wastage_calculated = (
+                                        host__heuristic_wastage_calculated
+                                        + item_wastage_calculated)
+            history.set_host_wastage(host, HEURISTIC,
+                                     host__heuristic_wastage_calculated)
 
             # Send to montior server
             monitorserver.send_item(hostsFromMonitorServer[host], 'wastage',
-                                    host_wastage_calculated)
+                                    host__heuristic_wastage_calculated)
 
 
 # Check if quota of the user has been exceeded
