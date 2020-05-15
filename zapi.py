@@ -4,6 +4,7 @@ import re
 import inspect
 import pyzabbix
 import pytz
+from pprint import pprint
 from datetime import datetime
 
 home = os.path.dirname(os.path.realpath(__file__))
@@ -49,15 +50,23 @@ def convert_value_type(value, valuetype):
 
 # Zabbix sender, send a value to a item
 def send_item(host, item, value):
+    if type(value) is dict:
+        value = str(value)
+    if type(value) is str:
+        value = '"{}"'.format(value)
+    print("zabbix_sender -z " + str(IPSERVER)
+              + " -s " + '"{}"'.format(host)
+              + " -k " + item
+              + " -o " + str(value))
     os.system("zabbix_sender -z " + str(IPSERVER)
-              + " -s " + host['id']
+              + " -s " + '"{}"'.format(host)
               + " -k " + item
               + " -o " + str(value))
 
 
 # Get the id of a host
 def get_hostID(hostname):
-    host = zapi.host.get(output=['hostid'], filter={'alias': hostname})
+    host = zapi.host.get(output=['hostid'], filter={'host': hostname})
     if host:
         return host[0]['hostid']
     else:
@@ -210,22 +219,43 @@ def host_enable(host):
                     + " has been restarted and was enabled")
 
 
+# Register a host on Zabbix server
+def register_volume(volume):
+    pprint(volume)
+    volume['launchtime'] = volume['launchtime'].strftime(
+                                                        "%Y-%m-%d %H:%M:%S %z")
+    if 'attachment' in volume and volume['attachment']:
+        volume['attachment']['time'] = volume['attachment']['time'].strftime(
+                                                        "%Y-%m-%d %H:%M:%S %z")
+    if 'deattachment' in volume and volume['deattachment']:
+        volume['deattachment'] = volume['deattachment'].strftime(
+                                                        "%Y-%m-%d %H:%M:%S %z")
+    pprint(volume)
+    send_item('AWS Volumes', 'volumes.get', volume)
+    logger.info("[ZAPI] [register_volume] Volume registered: " + volume['id'])
+
+
 # Get hosts from Zabbix Server
-def get_hosts(output=None, filter=None, macros=None, triggers=None,
+def get_hosts(resource, output=None, filter=None, macros=None, triggers=None,
               templates=None, groups=None, items=None,
               user=False, provider=False, region=False, service=False,
-              family=False, type=False, launchtime=False):
+              family=False, type=False, launchtime=False, filesystems=False):
     if not macros and (user or provider or region or service
                        or family or type or launchtime):
         macros = ['macro', 'value']
+    if not items and filesystems:
+        items = ['itemid', 'key_', 'value_type']
     try:
         hostsFromZabbix = zapi.host.get(output=output,
+                                        selectTags=['tag', 'value'],
                                         filter=filter,
                                         selectMacros=macros,
                                         selectTriggers=triggers,
                                         selectParentTemplates=templates,
                                         selectGroups=groups,
-                                        selectItems=items)
+                                        selectItems=items,
+                                        groupids=get_hostgroupID(
+                                                        'resource-'+resource))
     except pyzabbix.ZabbixAPIException as e:
         logger.error("[ZAPI] [get_hosts] Could not get hosts from server: "
                      + str(e))
@@ -233,8 +263,10 @@ def get_hosts(output=None, filter=None, macros=None, triggers=None,
         hosts = {}
         for host in hostsFromZabbix:
             # Eliminate ZabbixServer
-            if host['name'] == 'Zabbix server':
-                continue
+            if host['tags']:
+                for t in host['tags']:
+                    if t == 'ignore' and host['tags'][t] in ['true', 'True']:
+                        continue
             # Create a dictionary of macros for better handling
             if 'macros' in host:
                 host['macros_zabbix'] = host['macros']
@@ -307,6 +339,24 @@ def get_hosts(output=None, filter=None, macros=None, triggers=None,
                 host['items'] = ({item['key_']: item
                                    for item in host['items']})
 
+            host['filesystems'] = []
+            host['filesystems_all'] = []
+            host['devices_without_filesystems'] = []
+            host['filesystems_without_devices'] = []
+            host['devices_filesystems'] = []
+            # Get the filesystems
+            if filesystems:
+                for item in host['items']:
+                    if item.find('vfs.fs.usage.free') != -1:
+                        host['filesystems_all'].extend(re.findall(r'\[(.*)\]',
+                                                       item))
+                        history_price = get_history(host=host, since=0,
+                                                    till=NOW, itemkey=item)
+                        if (not history_price
+                           or history_price[-1]['value'] != -1):
+                            host['filesystems'].extend(re.findall(r'\[(.*)\]',
+                                                       item))
+
             if 'name' in host:
                 host['id'] = host['name']
                 del host['name']
@@ -321,7 +371,7 @@ def get_hosts(output=None, filter=None, macros=None, triggers=None,
 # Associate the host with its user
 def host_user_association(host):
     macros = host['macros']
-    groupName = host['user'] + '-user-hosts'
+    groupName = 'user-' + host['user'] + '-hosts'
 
     # If the USER macro is not present, it is added
     if '{$USER}' not in macros:
@@ -405,6 +455,27 @@ def host_provider_association(host):
                         + "host " + host['id'] + " added: " + host['provider'])
 
 
+# Associate the host with its os
+def host_os_association(host):
+    macros = host['macros']
+
+    # If the OS macro is not present, if not it is added
+    if '{$OS}' not in macros:
+        host['macros_zabbix'].append({'macro': '{$OS}',
+                                      'value': str(host['os'])})
+        host['macros']['{$OS}'] = host['os']
+        try:
+            zapi.host.update(hostid=host['id_zabbix'],
+                             macros=host['macros_zabbix'])
+        except pyzabbix.ZabbixAPIException as e:
+            logger.error("[ZAPI] [host_os_association] Could not add "
+                         + "os to the host " + host['id']
+                         + ": " + str(e))
+        else:
+            logger.info("[ZAPI] [host_os_association] The os of "
+                        + "host " + host['id'] + " added: " + host['os'])
+
+
 # Associate the host with its service (ondemand, spot, reservation, dedicated)
 def host_service_association(host):
     macros = host['macros']
@@ -456,38 +527,41 @@ def host_launchtime_association(host):
 def host_update_instance_price(host):
     macros = host['macros']
     changed = False
-    # If the price not found
+    # If there is a price
     if host['price']:
         # If the PRICE macro is present
         if '{$PRICE}' in macros:
             # Check its consistency, if it is different we update the macro
-            if float(macros['{$PRICE}']) != float(host['price']):
+            if float(macros['{$PRICE}']) != round(host['price'], 6):
                 lastprice = macros['{$PRICE}']
                 for m in host['macros_zabbix']:
                     if m['macro'] == '{$PRICE}':
-                        m['value'] = host['price']
+                        m['value'] = round(host['price'], 6)
                         break
-                macros['{$PRICE}'] = host['price']
+                macros['{$PRICE}'] =round(host['price'], 6)
                 changed = True
                 loggerMessage = ("[ZAPI] [host_update_instance_price] "
                                  + "The price of host " + host['id']
                                  + " has been changed: "
-                                 + lastprice + " -> " + str(host['price']))
+                                 + lastprice + " -> "
+                                 + str(round(host['price'], 6)))
         # If the PRICE is not present, we add it
         else:
             host['macros_zabbix'].append({'macro': '{$PRICE}',
-                                          'value': str(host['price'])})
-            host['macros']['{$PRICE}'] = host['price']
+                                          'value':
+                                          str(round(host['price'], 6))})
+            host['macros']['{$PRICE}'] = round(host['price'], 6)
             changed = True
             loggerMessage = ("[ZAPI] [host_update_instance_price] The price "
                              + "of host " + host['id']
-                             + " added: " + str(host['price']))
+                             + " added: "
+                             + str(round(host['price'], 6)))
 
         if changed:
             try:
                 os.system("zabbix_sender -z " + str(IPSERVER) + " -s "
                           + host['id'] + " -k cloud.price -o "
-                          + str(host['price']))
+                          + str(round(host['price'], 6)))
                 zapi.host.update(hostid=host['id_zabbix'],
                                  macros=host['macros_zabbix'])
             except pyzabbix.ZabbixAPIException as e:
@@ -498,11 +572,12 @@ def host_update_instance_price(host):
                 logger.info(loggerMessage)
 
         history_price = get_history(host=host, itemkey='cloud.price',
-                                    since=0, till=NOW)
+                                    since=0, till=NOW, limit=1)
         if not history_price:
             os.system("zabbix_sender -z " + str(IPSERVER) + " -s "
                       + host['id'] + " -k cloud.price -o "
-                      + str(host['price']))
+                      + str(round(host['price'], 6)))
+
 
 # Update type of a host
 def host_update_type(host):
@@ -637,7 +712,7 @@ def host_update_family(host):
 
 # Get history from a item
 def get_history(host, itemkey=None, itemid=None, since=None, till=None,
-                output=['itemid', 'clock', 'value']):
+                limit=None, output=['itemid', 'clock', 'value']):
     # If item key, get the id
     if itemkey:
         itemid = host['items'][itemkey]['itemid']
@@ -658,6 +733,7 @@ def get_history(host, itemkey=None, itemid=None, since=None, till=None,
                                   time_from=since+1,
                                   time_till=till,
                                   sortorder='DESC',
+                                  limit=limit,
                                   output=output)
     except pyzabbix.ZabbixAPIException as e:
         logger.error("[ZAPI] [get_history] Could not get history of item "
@@ -667,3 +743,124 @@ def get_history(host, itemkey=None, itemid=None, since=None, till=None,
             v['timestamp'] = int(v['clock'])
             del v['clock']
         return values
+
+
+# This function associates each device to its filesystem
+def associate_filesystem_device(host):
+    host['devices_without_filesystems'] = [d['device']
+                                           for d in host['devices']]
+    host['filesystems_without_devices'] = host['filesystems']
+    # If provider is AWS and os is Linux we can do the association
+    if host['provider'] == 'aws' and host['os'] == 'Linux':
+        association = {}
+        devices = []
+        for d in [d['device'] for d in host['devices']]:
+            base = None
+            trailing_letter = None
+            if d.find('/dev/sd') != -1:
+                base = '/dev/sd'
+                trailing_letter = re.sub('/dev/sd', '', d)
+            elif d.find('/dev/hd') != -1:
+                base = '/dev/hd'
+                trailing_letter = re.sub('/dev/hd', '', d)
+            else:
+                logger.error("[ZAPI] [associate_filesystem_device] Could not "
+                             + "find base for device " + d)
+                return
+            devices.append([base, trailing_letter])
+        filesystems = []
+        for f in host['filesystems']:
+            base = None
+            trailing_letter = None
+            if f.find('/dev/xvd') != -1:
+                base = '/dev/xvd'
+                trailing_letter = re.sub('/dev/xvd', '', f)
+            else:
+                logger.error("[ZAPI] [associate_filesystem_device] Could not "
+                             + " find base for filesystem " + f)
+                return
+            filesystems.append([base, trailing_letter])
+
+        # Get the root
+        for d in devices.copy():
+            for f in filesystems.copy():
+                if d[1] == f[1]:
+                    association[d[0]+d[1]] = f[0] + f[1]
+                    devices.remove(d)
+                    filesystems.remove(f)
+
+        host['devices_without_filesystems'] = []
+        for d in devices:
+            host['devices_without_filesystems'].append(d[0]+d[1])
+        host['filesystems_without_devices'] = []
+        for f in filesystems:
+            host['filesystems_without_devices'].append(f[0]+f[1])
+        host['devices_filesystems'] = association
+
+
+# Update filesystems of host
+# This macro is a dict, associating each device to its filesystem
+def host_update_devices(host):
+    associate_filesystem_device(host)
+
+    macros = host['macros']
+    changed = False
+    # If the DEVICES macro is present
+    if '{$DEVICES}' in macros:
+        # Check its consistency, if different update the macro and template
+        if macros['{$DEVICES}'] != str(host['devices_filesystems']):
+            lastdevices = macros['{$DEVICES}']
+            for m in host['macros_zabbix']:
+                if m['macro'] == '{$TYPE}':
+                    m['value'] = str(host['devices_filesystems'])
+                    break
+            macros['{$DEVICES}'] = str(host['devices_filesystems'])
+            changed = True
+            loggerMessage = ("[ZAPI] [host_update_devices] The devices of host"
+                             + " " + host['id'] + " has been changed: "
+                             + lastdevices + " -> "
+                             + str(host['devices_filesystems']))
+    # If the TYPE is not present, we add it
+    else:
+        host['macros_zabbix'].append({'macro': '{$DEVICES}',
+                                      'value': str(host['devices_filesystems'])
+                                      })
+        host['macros']['{$DEVICES}'] = str(host['devices_filesystems'])
+        changed = True
+        loggerMessage = ("[ZAPI] [host_update_devices] The devices of host "
+                         + host['id'] + " added: "
+                         + str(host['devices_filesystems']))
+    if changed:
+        try:
+            zapi.host.update(hostid=host['id_zabbix'],
+                             macros=host['macros_zabbix'])
+        except pyzabbix.ZabbixAPIException as e:
+            logger.error("[ZAPI] [host_update_devices] Could not update macros"
+                         + " of the host " + host['id'] + ": " + str(e))
+        else:
+            logger.info(loggerMessage)
+
+
+# Update price of a filesystem
+def host_update_filesystem_price(volume, host):
+    # If there is a price
+    if volume['price']:
+        # Get the device nome of volume
+        device_name = volume['attachment']['device']
+        if device_name not in host['devices_filesystems']:
+            logger.error("[ZAPI] [host_update_filesystem_price] "
+                         + " This volume is not mounted "
+                         + volume['attachment']['device'])
+            return
+
+        # Get the item history
+        itemkey = 'vfs.fs.price['+host['devices_filesystems'][device_name]+']'
+        history_price = get_history(host=host, since=0, till=NOW,
+                                    itemkey=itemkey, limit=1)
+        # Add or update the price
+        if (not history_price
+           or float(history_price[0]['value']) != round(volume['price'], 6)):
+            os.system("zabbix_sender -z " + str(IPSERVER) + " -s "
+                      + volume['attachment']['instance']
+                      + " -k " + itemkey + " -o "
+                      + str(volume['price']))
