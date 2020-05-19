@@ -23,19 +23,24 @@ CURRENT_MONTH = int(datetime.utcnow().replace(tzinfo=timezone.utc).month)
 
 
 class HistoryWastage:
-    def __init__(self, HISTORY_ITEMS_FILE):
-        self.HISTORY_ITEMS_FILE = HISTORY_ITEMS_FILE
+    def __init__(self, HISTORY_FILE, mode):
+        self.mode = mode
+        if self.mode == 'execution':
+            self.HISTORY_FILE = HISTORY_FILE
+        elif self.mode == 'testing':
+            self.HISTORY_FILE = HISTORY_FILE+'.testing'
+
         self.history_wastage = {}
         # Get history of wastage from file
-        if os.path.isfile(HISTORY_ITEMS_FILE):
+        if os.path.isfile(self.HISTORY_FILE):
             try:
-                self.history_wastage = json.loads((open(HISTORY_ITEMS_FILE,
+                self.history_wastage = json.loads((open(self.HISTORY_FILE,
                                                         'r')).read())
             except json.decoder.JSONDecodeError:
                 pass
 
-        pprint(self.history_wastage)
-
+        #pprint("____________________________________________")
+        #pprint(self.history_wastage)
         # Get user wastage and quota from database
         self.users = {}
         cursor.execute("SELECT * FROM User_Wastage")
@@ -50,20 +55,23 @@ class HistoryWastage:
                 self.users[user[0]]['month'] = 0
 
     def __del__(self):
+        #pprint("____________________________________________")
+        #pprint(self.history_wastage)
+
         # Update file
-        (open(self.HISTORY_ITEMS_FILE,
-              "w")).write(json.dumps(self.history_wastage))
+        (open(self.HISTORY_FILE, "w+")).write(json.dumps(self.history_wastage))
 
         # Update database
-        for user in self.users:
-            cursor.execute("UPDATE User_Wastage SET WastageTotal="
-                           + str(self.users[user]['total'])
-                           + ",WastageLastMonth="
-                           + str(self.users[user]['permonth'])
-                           + ",Month="+str(self.users[user]['month'])
-                           + " WHERE UserName=\'" + user
-                           + "\'")
-            #con.commit()
+        if self.mode == 'execution':
+            for user in self.users:
+                cursor.execute("UPDATE User_Wastage SET WastageTotal="
+                               + str(self.users[user]['total'])
+                               + ",WastageLastMonth="
+                               + str(self.users[user]['permonth'])
+                               + ",Month="+str(self.users[user]['month'])
+                               + " WHERE UserName=\'" + user
+                               + "\'")
+                con.commit()
 
     # Get history of wastage
     def get_history(self):
@@ -122,7 +130,6 @@ class HistoryWastage:
             self.history_wastage[host][heuristic] = {}
             self.history_wastage[host][heuristic]['wastage'] = 0.0
 
-
     # Get the last timestamp of price of host
     def get_price_timestamp(self, host):
         if self.history_wastage[host]['prices']['timestamps']:
@@ -144,11 +151,30 @@ class HistoryWastage:
                 return float(prices['values'][i])
         return prices['values'][0]
 
+    # Get prices between two timestamps
+    def find_prices(self, host, begin, end):
+        prices = self.history_wastage[host]['prices']
+        period_prices = []
+        for i in reversed(range(len(prices['timestamps']))):
+            if prices['timestamps'][i] <= end:
+                if prices['timestamps'][i] > begin:
+                    period_prices.append([float(prices['values'][i]),
+                                          prices['timestamps'][i]])
+                else:
+                    period_prices.append([float(prices['values'][i]),
+                                          prices['timestamps'][i]])
+                    break
+        period_prices.reverse()
+        period_prices[0][1] = begin
+        return period_prices
+
     # Set the history of price of host
     def set_pricing_history(self, host, values):
         new_timestamps = []
         new_values = []
         for v in values:
+            if v['value'] == 0.001111:
+                v['value'] = 2.00
             new_timestamps.append(int(v['timestamp']))
             new_values.append(float(v['value']))
         self.history_wastage[host]['prices']['timestamps'].extend(
