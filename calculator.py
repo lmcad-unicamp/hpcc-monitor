@@ -248,7 +248,7 @@ for host in hostsFromMonitorServer:
                 last_timestamp = v['timestamp']
                 # Add wastage to the user
                 volumes.add_user_wastage(hostsFromMonitorServer[host]['user'],
-                                         wastage, v['timestamp'])
+                                         wastage, last_timestamp)
                 item_wastage_calculated += wastage
 
         # If there is no recent value, we compute the last wastage
@@ -272,7 +272,7 @@ for host in hostsFromMonitorServer:
                 i_price = i_price + 1
                 # Add wastage to the user
                 volumes.add_user_wastage(hostsFromMonitorServer[host]['user'],
-                                         wastage, v['timestamp'])
+                                         wastage, last_timestamp)
             last_timestamp = NOW
 
         # If new wastage has been calculated
@@ -294,27 +294,25 @@ for host in hostsFromMonitorServer:
                 monitorserver.send_item(host, 'wastage',
                                         host_heuristic_wastage_calculated)
 
-if MODE == 'executing':
-    # Check if quota of the user has been exceeded
-    for user in virtualmachines.get_users():
-        if (virtualmachines.get_user_attribute(user, 'permonth')
-           >= virtualmachines.get_user_attribute(user, 'quota')):
-            try:
-                emails = monitorserver.get_admins_email()
-                emails.append(monitorserver.get_user_email(
-                                        hostsFromMonitorServer[host]['user']))
-                quotaexceeded_email(emails,
-                                    virtualmachines.get_user_attribute(
-                                                            user, 'quota'),
-                                    virtualmachines.get_user_attribute(
-                                                            user, 'permonth'))
-            except monitorserver.NotFoudException as e:
-                logger.error("[CALCULATOR] Quota exceeded " + user
-                             + ". Could not send email to admins and user "
-                             + user + ": "
-                             + str(e))
-            else:
-                logger.info("[CALCULATOR] Quota exceeded. Sending email "
-                            + "to admins and user "
-                            + virtualmachines.get_user_attribute(
-                                                            user, 'permonth'))
+
+# Check if quota of the user has been exceeded
+for user in virtualmachines.get_users():
+    quota = virtualmachines.get_user_attribute(user, 'quota')
+    permonth = virtualmachines.get_user_attribute(user, 'permonth')
+    if permonth >= quota:
+        try:
+            emails = monitorserver.get_admins_email()
+            emails.append(monitorserver.get_user_email(
+                                    hostsFromMonitorServer[host]['user']))
+            if MODE == 'executing':
+                quotaexceeded_email(emails, quota, permonth)
+        except monitorserver.NotFoudException as e:
+            logger.error("[CALCULATOR] Quota exceeded " + user
+                         + ". Could not send email to admins and user "
+                         + user + ": "
+                         + str(e))
+        else:
+            logger.info("[CALCULATOR] Quota exceeded. Sending email "
+                        + "to admins and user " + user
+                        + ". Quota: " + str(quota)
+                        + " Usage: " + str(permonth))

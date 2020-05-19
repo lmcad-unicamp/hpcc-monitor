@@ -38,9 +38,6 @@ class HistoryWastage:
                                                         'r')).read())
             except json.decoder.JSONDecodeError:
                 pass
-
-        #pprint("____________________________________________")
-        #pprint(self.history_wastage)
         # Get user wastage and quota from database
         self.users = {}
         cursor.execute("SELECT * FROM User_Wastage")
@@ -48,15 +45,22 @@ class HistoryWastage:
             self.users[user[0]] = {}
             self.users[user[0]]['quota'] = float(user[1])
             self.users[user[0]]['total'] = float(user[2])
-            self.users[user[0]]['permonth'] = float(user[3])
             if user[4] == CURRENT_MONTH:
                 self.users[user[0]]['month'] = user[4]
+                self.users[user[0]]['permonth'] = float(user[3])
             else:
-                self.users[user[0]]['month'] = 0
+                self.users[user[0]]['month'] = CURRENT_MONTH
+                self.users[user[0]]['permonth'] = 0.0
+        if self.mode == 'testing':
+            pprint("____________________________________________")
+            pprint(self.history_wastage)
+            pprint(self.users)
 
     def __del__(self):
-        #pprint("____________________________________________")
-        #pprint(self.history_wastage)
+        if self.mode == 'testing':
+            pprint("____________________________________________")
+            pprint(self.history_wastage)
+            pprint(self.users)
 
         # Update file
         (open(self.HISTORY_FILE, "w+")).write(json.dumps(self.history_wastage))
@@ -173,8 +177,6 @@ class HistoryWastage:
         new_timestamps = []
         new_values = []
         for v in values:
-            if v['value'] == 0.001111:
-                v['value'] = 2.00
             new_timestamps.append(int(v['timestamp']))
             new_values.append(float(v['value']))
         self.history_wastage[host]['prices']['timestamps'].extend(

@@ -1179,10 +1179,10 @@ def volume_update_history(volume, host):
     # Send the history of filesystem to volume
     if filesystem_history:
         values = (volume['id'] + ' volume.space.free '
-                   + str(filesystem_history[0]['timestamp']) + ' '
-                   + filesystem_history[0]['value'])
+                  + str(filesystem_history[0]['timestamp']) + ' '
+                  + str(filesystem_history[0]['value']))
         for v in filesystem_history[1:]:
             values = values + ('\n' + volume['id'] + ' volume.space.free '
-                         + str(v['timestamp']) + ' ' + v['value'])
+                               + str(v['timestamp']) + ' ' + str(v['value']))
         send_item(volume['id'], 'volume.space.free', values,
                   file=True, timestamp=True)

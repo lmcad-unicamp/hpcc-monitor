@@ -7,6 +7,7 @@ EMAIL_USER = (open(home+"/private/email_user", "r")).read().strip('\n')
 EMAIL_PASSWORD = (open(home+"/private/email_password", "r")).read().strip('\n')
 WEBSITE = (open(home+"/private/website", "r")).read().strip('\n')
 
+
 def send_email(emails, subject, message):
     s = smtplib.SMTP_SSL(host='smtp.gmail.com', port=465)
     s.ehlo()
@@ -62,7 +63,7 @@ def usernotfound_email(emails, user):
 
 def quotaexceeded_email(emails, quota, wastage):
     message = """You do not have more money to waste!\n
-    Your quota is USD %f and you have wasted USD %.2f\n
+    Your quota is USD %.2f and you have wasted USD %.2f\n
     You can ask more to admin.
     %s""" % (quota, round(wastage, 2), WEBSITE)
     subject = "URGENT: You do not have more money to waste!"
