@@ -175,7 +175,6 @@ for host in hostsFromMonitorServer:
 
 # For each host, calculate wastage
 for host in hostsFromMonitorServer:
-    volumes.print_host(host)
     # If the host does not have price, we cannot calculate wastage
     if not volumes.has_price(host):
         logger.error("[CALCULATOR] The host " + host + " does not have price")
