@@ -42,9 +42,6 @@ regions = {'us-east-1': "US East (N. Virginia)",
            'me-south-1': "Middle East (Bahrain)",
            'sa-east-1': u"South America (São Paulo)"}
 
-regions = {#'us-east-1': "US East (N. Virginia)",
-           'us-east-2': "US East (Ohio)"}
-
 ebs_types = {'standard': 'Magnetic',
              'gp2': 'General Purpose',
              'io1': 'Provisioned IOPS',
