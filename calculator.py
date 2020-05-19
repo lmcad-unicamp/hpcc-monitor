@@ -10,12 +10,14 @@ from pprint import pprint
 HEURISTIC = 'heuristic-1'
 MODE = 'executing'
 
-heuristics_keys = {'heuristic-1': {'accelerated':     'wastage.gpu.util',
-                                   'compute':         'wastage.cpu.util',
+heuristics_keys = {'heuristic-1': {'accelerated':     'gpu.idle',
+                                   'compute':         'system.cpu.util'
+                                                      + '[all,idle,avg1]',
                                    'generalpurpose':  'system.cpu.util'
                                                       + '[all,idle,avg1]',
-                                   'memory':          'wastage.memory.util',
-                                   'storage':         'wastage.cpu.util',
+                                   'memory':          'vm.memory.size[pavailable]',
+                                   'storage':         'system.cpu.util'
+                                                      + '[all,idle,avg1]',
                                    'volumes':         'volume.space.free'
                                    }
                    }
