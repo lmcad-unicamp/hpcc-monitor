@@ -8,7 +8,7 @@ from sendemail import quotaexceeded_email
 from pprint import pprint
 
 HEURISTIC = 'heuristic-1'
-MODE = 'testing'
+MODE = 'executing'
 
 heuristics_keys = {'heuristic-1': {'accelerated':     'wastage.gpu.util',
                                    'compute':         'wastage.cpu.util',
