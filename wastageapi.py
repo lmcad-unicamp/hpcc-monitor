@@ -25,7 +25,7 @@ CURRENT_MONTH = int(datetime.utcnow().replace(tzinfo=timezone.utc).month)
 class HistoryWastage:
     def __init__(self, HISTORY_FILE, mode):
         self.mode = mode
-        if self.mode == 'execution':
+        if self.mode == 'executing':
             self.HISTORY_FILE = HISTORY_FILE
         elif self.mode == 'testing':
             self.HISTORY_FILE = HISTORY_FILE+'.testing'
@@ -62,7 +62,7 @@ class HistoryWastage:
         (open(self.HISTORY_FILE, "w+")).write(json.dumps(self.history_wastage))
 
         # Update database
-        if self.mode == 'execution':
+        if self.mode == 'executing':
             for user in self.users:
                 cursor.execute("UPDATE User_Wastage SET WastageTotal="
                                + str(self.users[user]['total'])
