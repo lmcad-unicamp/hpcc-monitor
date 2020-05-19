@@ -63,7 +63,7 @@ class HistoryWastage:
             pprint(self.users)
 
         # Update file
-        #(open(self.HISTORY_FILE, "w+")).write(json.dumps(self.history_wastage))
+        (open(self.HISTORY_FILE, "w+")).write(json.dumps(self.history_wastage))
 
         # Update database
         if self.mode == 'executing':
