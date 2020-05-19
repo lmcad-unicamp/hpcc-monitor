@@ -24,7 +24,7 @@ def notregistered_email(emails, host):
     message = """WARNING: YOU HAVE AN INSTANCE THAT IS NOT BEING MONITORED!\n
     Please, install the agent in your instance (%s), more info you can find
      here: %s""" % (host, WEBSITE)
-    subject = "URGENT: there is a host unregistered"
+    subject = "URGENT: there is an unregistered host"
     if type(emails) is list:
         emails = ", ".join(emails)
     send_email(emails, subject, message)
@@ -55,7 +55,7 @@ def usernotfound_email(emails, user):
     message = """There is an user not registered in Zabbix!\n
     Please, register this user: %s \n
     More info you can find here: %s""" % (user, WEBSITE)
-    subject = "URGENT: there is an user unregistered"
+    subject = "URGENT: there is an unregistered user"
     if type(emails) is list:
         emails = ", ".join(emails)
     send_email(emails, subject, message)
