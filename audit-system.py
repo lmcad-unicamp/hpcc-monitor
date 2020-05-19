@@ -56,13 +56,11 @@ def write_history_file(FILE_NAME, objects):
 # Get users from Monitor Server
 users = monitorserver.get_users()
 
-# Get instances and volume from providers
+# Get instances from providers
 instances = aws.get_instances(ignore={'tags': {'monitorignore':
                                                ['True', 'true']},
                                       'state': ['terminated',
                                                 'shutting-down']})
-volumes = aws.get_volumes(ignore={'tags': {'monitorignore':
-                                           ['True', 'true']}})
 
 hostsFromProvider = {}
 hostsFromProviderStopped = {}
@@ -75,9 +73,9 @@ for instance in instances:
             if instance['state'] in ['stopped', 'stopping']:
                 if instance['user'] in users:
                     hostsFromProviderStopped[instance['id']] = {
-                                            'id': instance['id'],
-                                            'launchtime': instance['launchtime']
-                                            }
+                                        'id': instance['id'],
+                                        'launchtime': instance['launchtime']
+                                        }
             # If the instance is running
             elif instance['state'] in ['running', 'pending']:
                 # If its from a user not registered
@@ -99,37 +97,9 @@ for instance in instances:
                                             'id': instance['id'],
                                             'user': instance['user']}
 
-# For each volume, we check if the user(user) is registered on Monitor Server,
-# and check if it is monitor ignore
-volumesFromProvider = []
-volumesFromProviderAvailable = []
-for volume in volumes:
-    if volume['provider'] in ['aws']:
-        if volume['user'] in users:
-            if volume['state'] in ['in-use']:
-                volumesFromProvider.append(
-                                    {'id': volume['id'],
-                                     'user': volume['user'],
-                                     'type': volume['type'],
-                                     'region': volume['region'],
-                                     'provider': volume['provider'],
-                                     'attachments': volume['attachments'],
-                                     'launchtime': volume['launchtime'],
-                                     'price': volume['price']
-                                     })
-            elif volume['state'] in ['available']:
-                volumesFromProviderAvailable.append(
-                                    {'id': volume['id'],
-                                     'user': volume['user'],
-                                     'type': volume['type'],
-                                     'region': volume['region'],
-                                     'provider': volume['provider'],
-                                     'deattachment': volume['deattachment'],
-                                     'launchtime': volume['launchtime'],
-                                     'price': volume['price']
-                                     })
 
 hostsFromMonitorServer = monitorserver.get_hosts(
+                                        resource='virtualmachines',
                                         output=['name'],
                                         filter={'status': '0'},
                                         macros=['macro', 'value'],
@@ -256,15 +226,58 @@ for host in [x for x in hostsFromProvider if x not in hostsFromMonitorServer]:
 write_history_file(NOTREGISTERED_INSTANCES_FILE, newNotregisteredInstances)
 
 # -----------------------------------------------------------------------------
+# Get volumes from provider
+volumes = aws.get_volumes(ignore={'tags': {'monitorignore': ['True', 'true']}})
+
+
+# For each volume, we check if the user(user) is registered on Monitor Server
+volumesFromProvider = []
+volumesFromProviderAvailable = []
+for volume in volumes:
+    if volume['provider'] in ['aws']:
+        if volume['user'] in users:
+            if volume['state'] in ['in-use']:
+                volumesFromProvider.append(
+                                    {'id': volume['id'],
+                                     'user': volume['user'],
+                                     'type': volume['type'],
+                                     'region': volume['region'],
+                                     'provider': volume['provider'],
+                                     'attachment': volume['attachment'],
+                                     'launchtime': volume['launchtime'],
+                                     'price': volume['price']
+                                     })
+            elif volume['state'] in ['available']:
+                volumesFromProviderAvailable.append(
+                                    {'id': volume['id'],
+                                     'user': volume['user'],
+                                     'type': volume['type'],
+                                     'region': volume['region'],
+                                     'provider': volume['provider'],
+                                     'detachment': volume['detachment'],
+                                     'launchtime': volume['launchtime'],
+                                     'price': volume['price']
+                                     })
+
+
+# Get volumes from Monitor Server
+volumesFromMonitorServer = monitorserver.get_hosts(
+                                                resource='volumes',
+                                                output=['name'],
+                                                filter={'status': '0'},
+                                                macros=['macro', 'value'],
+                                                triggers=['triggerid', 'name'],
+                                                )
+
 # Get available volumes from file
 availableVolumes = read_history_file(AVAILABLE_VOLUMES_FILE)
 
 # Detect volumes that are available for too long
 nowAvailableVolumes = []
 for volume in volumesFromProviderAvailable:
-    # If the volume has been deattached for a little while, ignore
-    if (volume['deattachment']
-        and NOW - volume['deattachment']
+    # If the volume has been detached for a little while, ignore
+    if (volume['detachment']
+        and NOW - volume['detachment']
             < AVAILABLE_VOLUMES_FIRST_TIME_TO_NOTIFY):
         continue
     # If the admins and user have not been notified about this volume in the

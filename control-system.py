@@ -19,15 +19,12 @@ logger.addHandler(ch)
 # Gets users from Monitor Server
 users = monitorserver.get_users()
 
-# Gets instances from providers
-instances = aws.get_instances(pricing=True, ignore={
-                                            'tags': {'monitorignore':
-                                                     ['True', 'true']},
-                                            'state': ['terminated',
-                                                      'shutting-down'],
-                                            'price': {'state':
-                                                      ['stopped', 'stopping']
-                                                      }})
+# Gets instances and volumes from providers
+instances = aws.get_instances(
+        pricing=True, ignore={'tags': {'monitorignore': ['True', 'true']},
+                              'state': ['terminated', 'shutting-down'],
+                              'price': {'state': ['stopped', 'stopping']}})
+
 
 hostsFromProvider = {}
 hostsFromProviderStopped = {}
@@ -40,13 +37,16 @@ for instance in instances:
             if instance['user'] in users:
                 hostsFromProviderStopped[instance['id']] = {
                                         'id': instance['id'],
+                                        'resource': 'virtualmachines',
                                         'user': instance['user'],
                                         'type': instance['type'],
                                         'family': instance['family'],
                                         'provider': instance['provider'],
                                         'region': instance['region'],
+                                        'os': instance['os'],
                                         'service': instance['service'],
                                         'service_id': instance['service_id'],
+                                        'devices': instance['devices'],
                                         'price': instance['price'],
                                         'launchtime': instance['launchtime']
                                         }
@@ -59,29 +59,36 @@ for instance in instances:
                                         'user': instance['user']}
             hostsFromProvider[instance['id']] = {
                                     'id': instance['id'],
+                                    'resource': 'virtualmachines',
                                     'user': instance['user'],
                                     'type': instance['type'],
                                     'family': instance['family'],
                                     'provider': instance['provider'],
                                     'region': instance['region'],
+                                    'os': instance['os'],
                                     'service': instance['service'],
                                     'service_id': instance['service_id'],
+                                    'devices': instance['devices'],
                                     'price': instance['price'],
                                     'launchtime': instance['launchtime']
                                     }
 
 hostsFromMonitorServer = monitorserver.get_hosts(
+                                        resource='virtualmachines',
                                         output=['name'],
                                         filter={'status': '0'},
                                         macros=['macro', 'value'],
                                         templates=['templateid', 'name'],
                                         items=['itemid', 'key_', 'value_type'],
-                                        groups=['groupsid', 'name']
+                                        groups=['groupsid', 'name'],
+                                        filesystems=True
                                         )
 
 # If the instance is stopped, we are not going to handle it here
+stoppedHostFromMonitorServer = {}
 for host in {host for host in hostsFromMonitorServer
              if host in hostsFromProviderStopped}:
+    stoppedHostFromMonitorServer[host] = hostsFromMonitorServer[host]
     del hostsFromMonitorServer[host]
 
 # Detect terminated instances and disable it on Monitor Server
@@ -93,15 +100,20 @@ for host in {host for host in hostsFromMonitorServer
 # Gets the attributes from provider
 for host in hostsFromMonitorServer:
     hostsFromMonitorServer[host]['user'] = hostsFromProvider[host]['user']
+    hostsFromMonitorServer[host]['resource'] = hostsFromProvider[host][
+                                                                'resource']
     hostsFromMonitorServer[host]['provider'] = hostsFromProvider[host][
                                                                 'provider']
     hostsFromMonitorServer[host]['region'] = hostsFromProvider[host]['region']
     hostsFromMonitorServer[host]['type'] = hostsFromProvider[host]['type']
     hostsFromMonitorServer[host]['family'] = hostsFromProvider[host]['family']
+    hostsFromMonitorServer[host]['os'] = hostsFromProvider[host]['os']
     hostsFromMonitorServer[host]['service'] = hostsFromProvider[host][
                                                                 'service']
     hostsFromMonitorServer[host]['service_id'] = hostsFromProvider[host][
                                                                 'service_id']
+    hostsFromMonitorServer[host]['devices'] = hostsFromProvider[host][
+                                                                'devices']
     hostsFromMonitorServer[host]['price'] = hostsFromProvider[host]['price']
     hostsFromMonitorServer[host]['launchtime'] = hostsFromProvider[host][
                                                                 'launchtime']
@@ -111,12 +123,129 @@ for host in hostsFromMonitorServer:
     if host not in hostsFromProviderUserNotRegistered:
         monitorserver.host_user_association(hostsFromMonitorServer[host])
 
-# Associate the host with its provider, region, family, type, launchtime, price
+# Associate the host with its provider, region, launchtime, os
+# Update price, type, family and devices
 for host in hostsFromMonitorServer:
     monitorserver.host_provider_association(hostsFromMonitorServer[host])
     monitorserver.host_region_association(hostsFromMonitorServer[host])
     monitorserver.host_service_association(hostsFromMonitorServer[host])
+    monitorserver.host_os_association(hostsFromMonitorServer[host])
     monitorserver.host_update_family(hostsFromMonitorServer[host])
     monitorserver.host_update_type(hostsFromMonitorServer[host])
     monitorserver.host_launchtime_association(hostsFromMonitorServer[host])
-    monitorserver.host_update_instance_price(hostsFromMonitorServer[host])
+    monitorserver.host_update_devices_filesystems(hostsFromMonitorServer[host])
+    monitorserver.host_update_price(hostsFromMonitorServer[host])
+
+# -------------------------------------------------------------------------
+
+# Get volumes from provider
+volumes = aws.get_volumes(pricing=True,
+                          ignore={'tags': {'monitorignore': ['True', 'true']},
+                                  'state': ['available', 'error', 'creating',
+                                            'deleted', 'deleting']})
+
+
+# For each volume, we check if the user(user) is registered on Monitor Server
+volumesFromProvider = {}
+for volume in volumes:
+    if volume['provider'] in ['aws']:
+        if volume['user'] in users:
+            volumesFromProvider[volume['id']] = {
+                                    'id': volume['id'],
+                                    'resource': 'volumes',
+                                    'user': volume['user'],
+                                    'size': volume['size'],
+                                    'type': volume['type'],
+                                    'region': volume['region'],
+                                    'provider': volume['provider'],
+                                    'attachment': volume['attachment'],
+                                    'detachment': volume['detachment'],
+                                    'launchtime': volume['launchtime'],
+                                    'price': volume['price']}
+
+# Get volumes from Monitor Server
+volumesFromMonitorServer = monitorserver.get_hosts(
+                                        resource='volumes',
+                                        output=['name'],
+                                        filter={'status': '0'},
+                                        macros=['macro', 'value'],
+                                        triggers=['triggerid', 'name'],
+                                        items=['itemid', 'key_', 'value_type'],
+                                        groups=['groupsid', 'name'],
+                                        )
+
+# Register new volumes on Monitor Server
+for volume in [volume for volume in volumesFromProvider
+               if volume not in volumesFromMonitorServer]:
+    monitorserver.register_host(volumesFromProvider[volume])
+    host = monitorserver.get_hosts(hosts=[volume],
+                                   resource='volumes',
+                                   output=['name'],
+                                   filter={'status': '0'},
+                                   macros=['macro', 'value'],
+                                   triggers=['triggerid', 'name'],
+                                   items=['itemid', 'key_', 'value_type'],
+                                   groups=['groupsid', 'name'])
+    volumesFromMonitorServer[volume] = host[volume]
+
+# Disable deleted volumes on Monitor Server
+for volume in {volume for volume in volumesFromMonitorServer
+               if volume not in volumesFromProvider}:
+    monitorserver.host_disable(volumesFromMonitorServer[volume])
+    del volumesFromMonitorServer[volume]
+
+# Gets the attributes from provider
+for host in volumesFromMonitorServer:
+    volumesFromMonitorServer[host]['user'] = volumesFromProvider[host]['user']
+    volumesFromMonitorServer[host]['size'] = volumesFromProvider[host]['size']
+    volumesFromMonitorServer[host]['resource'] = volumesFromProvider[host][
+                                                                'resource']
+    volumesFromMonitorServer[host]['provider'] = volumesFromProvider[host][
+                                                                'provider']
+    volumesFromMonitorServer[host]['region'] = volumesFromProvider[host][
+                                                                'region']
+    volumesFromMonitorServer[host]['type'] = volumesFromProvider[host]['type']
+    volumesFromMonitorServer[host]['attachment'] = volumesFromProvider[host][
+                                                                'attachment']
+    volumesFromMonitorServer[host]['attachmentinstance'] = volumesFromProvider[
+                                                host]['attachment']['instance']
+    volumesFromMonitorServer[host]['attachmentdevice'] = volumesFromProvider[
+                                                host]['attachment']['device']
+    volumesFromMonitorServer[host]['attachmenttime'] = volumesFromProvider[
+                                                host]['attachment']['time']
+    volumesFromMonitorServer[host]['detachment'] = volumesFromProvider[host][
+                                                                'detachment']
+    volumesFromMonitorServer[host]['price'] = volumesFromProvider[host][
+                                                                'price']
+    volumesFromMonitorServer[host]['launchtime'] = volumesFromProvider[host][
+                                                                'launchtime']
+
+# Associate the host with its user, provider, region, launchtime, os
+# Update price, type, size, attachment, detachment
+for volume in volumesFromMonitorServer:
+    monitorserver.host_user_association(volumesFromMonitorServer[volume])
+    monitorserver.host_provider_association(volumesFromMonitorServer[volume])
+    monitorserver.host_region_association(volumesFromMonitorServer[volume])
+    monitorserver.host_launchtime_association(volumesFromMonitorServer[volume])
+    monitorserver.host_update_type(volumesFromMonitorServer[volume])
+    monitorserver.host_update_size(volumesFromMonitorServer[volume])
+    monitorserver.host_update_attachment(volumesFromMonitorServer[volume])
+    monitorserver.host_update_detachment(volumesFromMonitorServer[volume])
+    monitorserver.host_update_price(volumesFromMonitorServer[volume])
+
+# Update volumes history
+for volume in [volume for volume in volumesFromMonitorServer
+               if volumesFromMonitorServer[volume]['attachment']]:
+    # If the volume instance is attached to a host and registered on server
+    if (volumesFromMonitorServer[volume]['attachmentinstance']
+       in hostsFromMonitorServer):
+        monitorserver.volume_update_history(
+            volumesFromMonitorServer[volume],
+            hostsFromMonitorServer[volumesFromMonitorServer[volume][
+                                            'attachmentinstance']])
+    elif (volumesFromMonitorServer[volume]['attachmentinstance']
+          in stoppedHostFromMonitorServer):
+        monitorserver.volume_update_history(
+            volumesFromMonitorServer[volume],
+            stoppedHostFromMonitorServer[volumesFromMonitorServer[volume][
+                                               'attachmentinstance']])

@@ -9,6 +9,7 @@ from pprint import pprint
 from datetime import datetime
 import pytz
 import time
+from operator import itemgetter
 from joblib import Parallel, delayed
 import multiprocessing
 
@@ -40,6 +41,9 @@ regions = {'us-east-1': "US East (N. Virginia)",
            'eu-north-1': "Europe (Stockholm)",
            'me-south-1': "Middle East (Bahrain)",
            'sa-east-1': u"South America (São Paulo)"}
+
+regions = {#'us-east-1': "US East (N. Virginia)",
+           'us-east-2': "US East (Ohio)"}
 
 ebs_types = {'standard': 'Magnetic',
              'gp2': 'General Purpose',
@@ -412,8 +416,8 @@ def get_spotinstance_pricing(region, instance_info=None, instance_id=None):
     return
 
 
-# Get the last deattachment of a volume
-def get_last_deattachment(region, volume):
+# Get the last detachment of a volume
+def get_last_detachment(region, volume):
     try:
         client = boto.client('cloudtrail', region_name=region,
                              aws_access_key_id=ACCESS_ID,
@@ -448,6 +452,12 @@ def get_volumes_sequential(pricing=False, ignore={}):
             for volume in [i for i in clientvolumes['Volumes']]:
                 v = {}
 
+                # Get the state of the volume
+                v['state'] = volume['State']
+                # Ignore volumes with states to ignore (argument)
+                if 'state' in ignore and v['state'] in ignore['state']:
+                    continue
+
                 tags = {item['Key']: item['Value'] for item in volume['Tags']}
 
                 # Ignore instances with tags to ignore (argument)
@@ -457,18 +467,19 @@ def get_volumes_sequential(pricing=False, ignore={}):
                         continue
 
                 v['user'] = tags['owner']
-                v['attachments'] = None
+                v['attachment'] = None
                 for a in volume['Attachments']:
                     if a['State'] == 'attached':
-                        v['attachments'] = {}
-                        v['attachments']['device'] = a['Device']
-                        v['attachments']['instance'] = a['InstanceId']
-                        v['attachments']['time'] = a['AttachTime'].astimezone(
+                        v['attachment'] = {}
+                        v['attachment']['device'] = a['Device']
+                        v['attachment']['instance'] = a['InstanceId']
+                        v['attachment']['time'] = a['AttachTime'].astimezone(
                                                                     pytz.utc)
-                v['deattachment'] = get_last_deattachment(region,
+                v['detachment'] = get_last_detachment(region,
                                                           volume['VolumeId'])
                 v['id'] = volume['VolumeId']
                 v['type'] = volume['VolumeType']
+                v['size'] = volume['Size']
                 v['launchtime'] = volume['CreateTime'].astimezone(pytz.utc)
                 v['state'] = volume['State']
                 v['price'] = None
@@ -481,8 +492,7 @@ def get_volumes_sequential(pricing=False, ignore={}):
 
 
 # Get volumes from AWS in parallel
-def get_volumes_parallel(region_i, volumes, region,
-                         pricing=False, ignore={}):
+def get_volumes_parallel(region_i, volumes, region, pricing=False, ignore={}):
     volumes[region_i] = []
     try:
         client = boto.client('ec2', region_name=region,
@@ -496,6 +506,12 @@ def get_volumes_parallel(region_i, volumes, region,
         for volume in [i for i in clientvolumes['Volumes']]:
             v = {}
 
+            # Get the state of the volume
+            v['state'] = volume['State']
+            # Ignore volumes with states to ignore (argument)
+            if 'state' in ignore and v['state'] in ignore['state']:
+                continue
+
             tags = {item['Key']: item['Value'] for item in volume['Tags']}
 
             # Ignore instances with tags to ignore (argument)
@@ -505,20 +521,19 @@ def get_volumes_parallel(region_i, volumes, region,
                     continue
 
             v['user'] = tags['owner']
-            v['attachments'] = None
+            v['attachment'] = None
             for a in volume['Attachments']:
                 if a['State'] == 'attached':
-                    v['attachments'] = {}
-                    v['attachments']['device'] = a['Device']
-                    v['attachments']['instance'] = a['InstanceId']
-                    v['attachments']['time'] = a['AttachTime'].astimezone(
+                    v['attachment'] = {}
+                    v['attachment']['device'] = a['Device']
+                    v['attachment']['instance'] = a['InstanceId']
+                    v['attachment']['time'] = a['AttachTime'].astimezone(
                                                                 pytz.utc)
-            v['deattachment'] = get_last_deattachment(region,
-                                                      volume['VolumeId'])
+            v['detachment'] = get_last_detachment(region, volume['VolumeId'])
             v['id'] = volume['VolumeId']
             v['type'] = volume['VolumeType']
+            v['size'] = volume['Size']
             v['launchtime'] = volume['CreateTime'].astimezone(pytz.utc)
-            v['state'] = volume['State']
             v['price'] = None
             if pricing:
                 v['price'] = get_volume_pricing(region, volume_info=volume)
@@ -597,6 +612,21 @@ def get_instances_sequential(pricing=False, ignore={}):
                 i['launchtime'] = instance['LaunchTime'].astimezone(pytz.utc)
                 i['provider'] = 'aws'
 
+                i['devices'] = []
+                for v in instance['BlockDeviceMappings']:
+                    volume = {}
+                    volume['device'] = v['DeviceName']
+                    if 'Ebs' in v:
+                        volume['state'] = v['Ebs']['Status']
+                        volume['time'] = v['Ebs']['AttachTime']
+                        volume['id'] = v['Ebs']['VolumeId']
+                    else:
+                        volume['state'] = None
+                        volume['time'] = None
+                        volume['id'] = None
+                    i['devices'].append(volume)
+                i['devices'] = sorted(i['devices'], key=itemgetter('time'))
+
                 # The region comes like 'us-east-1b',
                 # we use regex to eliminate the final character
                 i['region'] = re.sub(r'\D$', '',
@@ -669,6 +699,35 @@ def get_instances_parallel(region_i, instances, region,
             i['family'] = get_instance_family(instance['InstanceType'])
             i['launchtime'] = instance['LaunchTime'].astimezone(pytz.utc)
             i['provider'] = 'aws'
+
+            i['devices'] = []
+            for v in instance['BlockDeviceMappings']:
+                volume = {}
+                volume['device'] = v['DeviceName']
+                if 'Ebs' in v:
+                    volume['state'] = v['Ebs']['Status']
+                    volume['time'] = v['Ebs']['AttachTime']
+                    volume['id'] = v['Ebs']['VolumeId']
+                else:
+                    volume['state'] = None
+                    volume['time'] = None
+                    volume['id'] = None
+                i['devices'].append(volume)
+            i['devices'] = sorted(i['devices'], key=itemgetter('time'))
+
+            # Get instance image infos
+            image_id = instance['ImageId']
+            image = client.describe_images(ImageIds=[image_id])
+
+            if not image['Images']:
+                logger.error("[AWS] [get_instance_pricing] Image "
+                             + str(image_id)
+                             + " does not exist, using default information."
+                             + " Instance " + instance['InstanceId'])
+                i['os'] = 'Linux'
+            else:
+                i['os'] = find_operatingsystem(image['Images'][0]
+                                               ['PlatformDetails'])
 
             # The region comes like 'us-east-1b',
             # we use regex to eliminate the final character
