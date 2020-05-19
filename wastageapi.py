@@ -52,9 +52,9 @@ class HistoryWastage:
                 self.users[user[0]]['month'] = CURRENT_MONTH
                 self.users[user[0]]['permonth'] = 0.0
         if self.mode == 'testing':
-            pprint("____________________________________________")
             pprint(self.history_wastage)
-            pprint(self.users)
+            #pprint(self.users)
+            pprint("____________________________________________")
 
     def __del__(self):
         if self.mode == 'testing':
@@ -63,7 +63,7 @@ class HistoryWastage:
             pprint(self.users)
 
         # Update file
-        (open(self.HISTORY_FILE, "w+")).write(json.dumps(self.history_wastage))
+        #(open(self.HISTORY_FILE, "w+")).write(json.dumps(self.history_wastage))
 
         # Update database
         if self.mode == 'executing':
@@ -168,8 +168,11 @@ class HistoryWastage:
                     period_prices.append([float(prices['values'][i]),
                                           prices['timestamps'][i]])
                     break
-        period_prices.reverse()
-        period_prices[0][1] = begin
+        if len(period_prices) == 0:
+            period_prices = [[float(prices['values'][0]), begin]]
+        else:
+            period_prices.reverse()
+            period_prices[0][1] = begin
         return period_prices
 
     # Set the history of price of host

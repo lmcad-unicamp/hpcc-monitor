@@ -8,7 +8,7 @@ from sendemail import quotaexceeded_email
 from pprint import pprint
 
 HEURISTIC = 'heuristic-1'
-MODE = 'executing'
+MODE = 'testing'
 
 heuristics_keys = {'heuristic-1': {'accelerated':     'wastage.gpu.util',
                                    'compute':         'wastage.cpu.util',
@@ -183,7 +183,6 @@ for host in hostsFromMonitorServer:
     if 'launchtime' in hostsFromMonitorServer[host]:
         launchtime = int(datetime.timestamp(hostsFromMonitorServer[
                                             host]['launchtime']))
-
     volumes.set_heuristic(host, HEURISTIC)
     # In this heuristic, each family of instances has a specific item to look
     if HEURISTIC == 'heuristic-1':
@@ -205,6 +204,7 @@ for host in hostsFromMonitorServer:
                                            itemkey=item,
                                            since=item_history['timestamp'],
                                            till=NOW)
+
         last_timestamp = item_history['timestamp']
         last_value = item_history['lastvalue']
         # If there is new values
