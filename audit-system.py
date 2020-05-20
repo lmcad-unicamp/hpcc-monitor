@@ -210,7 +210,7 @@ for host in [x for x in hostsFromProvider if x not in hostsFromMonitorServer]:
                          + hostsFromProvider[host]['user'] + ": "
                          + str(e))
         else:
-            newNotregisteredInstances.append(host + ',' +
+            newNotregisteredInstances.append(host + ','
                                              + NOW.strftime(
                                               "%Y-%m-%d %H:%M:%S %z"))
             logger.info("[AUDIT] This instance is not registered: "
