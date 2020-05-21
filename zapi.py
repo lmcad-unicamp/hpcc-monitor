@@ -296,7 +296,7 @@ def get_hosts(resource, output=None, filter=None, macros=None, triggers=None,
               templates=None, groups=None, items=None, hosts=None,
               user=False, provider=False, region=False, service=False,
               family=False, type=False, launchtime=False, filesystems=False,
-              attachment=False, detachment=False):
+              attachment=False, detachment=False, get=None):
     if not macros and (user or provider or region or service
                        or family or type or launchtime or attachment
                        or detachment):
@@ -328,8 +328,18 @@ def get_hosts(resource, output=None, filter=None, macros=None, triggers=None,
             # Ignore hosts if ignore tag
             if host['tags']:
                 for t in host['tags']:
-                    if t == 'ignore' and host['tags'][t] in ['true', 'True']:
+                    if t['tag'] == 'ignore' and t['value'] in ['true', 'True']:
                         continue
+
+            if get and 'tags' in get:
+                if not host['tags']:
+                    continue
+                for t in host['tags']:
+                    flag = False
+                    if t['tag'] not in get['tags']:
+                        flag = True
+                if flag:
+                    continue
 
             host['filesystems'] = []
             host['filesystems_all'] = []

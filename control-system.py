@@ -141,7 +141,7 @@ for host in hostsFromMonitorServer:
 # Get volumes from provider
 volumes = aws.get_volumes(pricing=True,
                           ignore={'tags': {'monitorignore': ['True', 'true']},
-                                  'state': ['available', 'error', 'creating',
+                                  'state': ['error', 'creating',
                                             'deleted', 'deleting']})
 
 
@@ -207,12 +207,17 @@ for host in volumesFromMonitorServer:
     volumesFromMonitorServer[host]['type'] = volumesFromProvider[host]['type']
     volumesFromMonitorServer[host]['attachment'] = volumesFromProvider[host][
                                                                 'attachment']
-    volumesFromMonitorServer[host]['attachmentinstance'] = volumesFromProvider[
-                                                host]['attachment']['instance']
-    volumesFromMonitorServer[host]['attachmentdevice'] = volumesFromProvider[
-                                                host]['attachment']['device']
-    volumesFromMonitorServer[host]['attachmenttime'] = volumesFromProvider[
-                                                host]['attachment']['time']
+    if volumesFromProvider[host]['attachment']:
+        volumesFromMonitorServer[host]['attachmentinstance'] = (
+                        volumesFromProvider[host]['attachment']['instance'])
+        volumesFromMonitorServer[host]['attachmentdevice'] = (
+                        volumesFromProvider[host]['attachment']['device'])
+        volumesFromMonitorServer[host]['attachmenttime'] = volumesFromProvider[
+                                                    host]['attachment']['time']
+    else:
+        volumesFromMonitorServer[host]['attachmentinstance'] = ''
+        volumesFromMonitorServer[host]['attachmentdevice'] = ''
+        volumesFromMonitorServer[host]['attachmenttime'] = ''
     volumesFromMonitorServer[host]['detachment'] = volumesFromProvider[host][
                                                                 'detachment']
     volumesFromMonitorServer[host]['price'] = volumesFromProvider[host][
