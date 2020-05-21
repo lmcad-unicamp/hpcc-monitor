@@ -454,7 +454,9 @@ def get_volumes_sequential(pricing=False, ignore={}):
                 # Ignore volumes with states to ignore (argument)
                 if 'state' in ignore and v['state'] in ignore['state']:
                     continue
-
+                    
+                if 'Tags' not in volume:
+                    continue
                 tags = {item['Key']: item['Value'] for item in volume['Tags']}
 
                 # Ignore instances with tags to ignore (argument)
@@ -509,7 +511,10 @@ def get_volumes_parallel(region_i, volumes, region, pricing=False, ignore={}):
             if 'state' in ignore and v['state'] in ignore['state']:
                 continue
 
+            if 'Tags' not in volume:
+                continue
             tags = {item['Key']: item['Value'] for item in volume['Tags']}
+
 
             # Ignore instances with tags to ignore (argument)
             if 'tags' in ignore:
@@ -607,6 +612,8 @@ def get_instances_sequential(pricing=False, ignore={}):
                 i['type'] = instance['InstanceType']
                 i['family'] = get_instance_family(instance['InstanceType'])
                 i['launchtime'] = instance['LaunchTime'].astimezone(pytz.utc)
+                i['restartlaunchtime'] = (
+                                instance['LaunchTime'].astimezone(pytz.utc))
                 i['provider'] = 'aws'
 
                 i['devices'] = []
@@ -695,6 +702,8 @@ def get_instances_parallel(region_i, instances, region,
             i['type'] = instance['InstanceType']
             i['family'] = get_instance_family(instance['InstanceType'])
             i['launchtime'] = instance['LaunchTime'].astimezone(pytz.utc)
+            i['restartlaunchtime'] = (
+                            instance['LaunchTime'].astimezone(pytz.utc))
             i['provider'] = 'aws'
 
             i['devices'] = []

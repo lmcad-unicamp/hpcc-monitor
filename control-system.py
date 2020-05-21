@@ -36,20 +36,21 @@ for instance in instances:
         if instance['state'] in ['stopped', 'stopping']:
             if instance['user'] in users:
                 hostsFromProviderStopped[instance['id']] = {
-                                        'id': instance['id'],
-                                        'resource': 'virtualmachines',
-                                        'user': instance['user'],
-                                        'type': instance['type'],
-                                        'family': instance['family'],
-                                        'provider': instance['provider'],
-                                        'region': instance['region'],
-                                        'os': instance['os'],
-                                        'service': instance['service'],
-                                        'service_id': instance['service_id'],
-                                        'devices': instance['devices'],
-                                        'price': instance['price'],
-                                        'launchtime': instance['launchtime']
-                                        }
+                            'id': instance['id'],
+                            'resource': 'virtualmachines',
+                            'user': instance['user'],
+                            'type': instance['type'],
+                            'family': instance['family'],
+                            'provider': instance['provider'],
+                            'region': instance['region'],
+                            'os': instance['os'],
+                            'service': instance['service'],
+                            'service_id': instance['service_id'],
+                            'devices': instance['devices'],
+                            'price': instance['price'],
+                            'launchtime': instance['launchtime'],
+                            'restartlaunchtime': instance['restartlaunchtime']
+                            }
         # If the instance is running
         elif instance['state'] in ['running', 'pending']:
             # If its from a user not registered
@@ -58,20 +59,21 @@ for instance in instances:
                                         'id': instance['id'],
                                         'user': instance['user']}
             hostsFromProvider[instance['id']] = {
-                                    'id': instance['id'],
-                                    'resource': 'virtualmachines',
-                                    'user': instance['user'],
-                                    'type': instance['type'],
-                                    'family': instance['family'],
-                                    'provider': instance['provider'],
-                                    'region': instance['region'],
-                                    'os': instance['os'],
-                                    'service': instance['service'],
-                                    'service_id': instance['service_id'],
-                                    'devices': instance['devices'],
-                                    'price': instance['price'],
-                                    'launchtime': instance['launchtime']
-                                    }
+                            'id': instance['id'],
+                            'resource': 'virtualmachines',
+                            'user': instance['user'],
+                            'type': instance['type'],
+                            'family': instance['family'],
+                            'provider': instance['provider'],
+                            'region': instance['region'],
+                            'os': instance['os'],
+                            'service': instance['service'],
+                            'service_id': instance['service_id'],
+                            'devices': instance['devices'],
+                            'price': instance['price'],
+                            'launchtime': instance['launchtime'],
+                            'restartlaunchtime': instance['restartlaunchtime']
+                            }
 
 hostsFromMonitorServer = monitorserver.get_hosts(
                                         resource='virtualmachines',
@@ -117,6 +119,8 @@ for host in hostsFromMonitorServer:
     hostsFromMonitorServer[host]['price'] = hostsFromProvider[host]['price']
     hostsFromMonitorServer[host]['launchtime'] = hostsFromProvider[host][
                                                                 'launchtime']
+    hostsFromMonitorServer[host]['restartlaunchtime'] = (
+                                hostsFromProvider[host]['restartlaunchtime'])
 
 # Associate the user with the host when the user is registered
 for host in hostsFromMonitorServer:
@@ -133,6 +137,7 @@ for host in hostsFromMonitorServer:
     monitorserver.host_update_family(hostsFromMonitorServer[host])
     monitorserver.host_update_type(hostsFromMonitorServer[host])
     monitorserver.host_launchtime_association(hostsFromMonitorServer[host])
+    monitorserver.host_update_restartlaunchtime(hostsFromMonitorServer[host])
     monitorserver.host_update_devices_filesystems(hostsFromMonitorServer[host])
     monitorserver.host_update_price(hostsFromMonitorServer[host])
 

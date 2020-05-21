@@ -401,6 +401,13 @@ def get_hosts(resource, output=None, filter=None, macros=None, triggers=None,
                                             '%Y-%m-%d %H:%M:%S %z')
                 else:
                     host['launchtime'] = None
+                # Get restartlaunchtime
+                if '{$RESTARTLAUNCHTIME}' in host['macros']:
+                    host['restartlaunchtime'] = datetime.strptime(
+                                        host['macros']['{$RESTARTLAUNCHTIME}'],
+                                        '%Y-%m-%d %H:%M:%S %z')
+                else:
+                    host['restartlaunchtime'] = None
                 # Get size
                 if '{$SIZE}' in host['macros']:
                     host['size'] = host['macros']['{$SIZE}']
@@ -639,6 +646,50 @@ def host_launchtime_association(host):
                         + "of host " + host['id'] + " added: "
                         + launchtime_string)
 
+# Associate the host with its lunchtime
+def host_update_restartlaunchtime(host):
+    # If there is a restart
+    if host['restartlaunchtime']:
+        restartlaunchtime = host['restartlaunchtime'].strftime("%Y-%m-%d %H:%M:%S %z")
+    else:
+        restartlaunchtime = ''
+    macros = host['macros']
+    changed = False
+    # If the RESTARTLAUNCHTIME macro is present
+    if '{$RESTARTLAUNCHTIME}' in macros:
+        # Check its consistency, if different update the macro and template
+        if macros['{$RESTARTLAUNCHTIME}'] != restartlaunchtime:
+            lastrestartlaunchtime = macros['{$RESTARTLAUNCHTIME}']
+            for m in host['macros_zabbix']:
+                if m['macro'] == '{$RESTARTLAUNCHTIME}':
+                    m['value'] = restartlaunchtime
+                    break
+            macros['{$RESTARTLAUNCHTIME}'] = restartlaunchtime
+            changed = True
+            loggerMessage = ("[ZAPI] [host_update_restartlaunchtime] The "
+                             + "restartlaunchtime of host "
+                             + host['id'] + " has been changed: "
+                             + lastrestartlaunchtime + " -> "
+                             + restartlaunchtime)
+    # If the RESTARTLAUNCHTIME is not present, we add it
+    else:
+        host['macros_zabbix'].append({'macro': '{$RESTARTLAUNCHTIME}',
+                                      'value': restartlaunchtime})
+        host['macros']['{$RESTARTLAUNCHTIME}'] = restartlaunchtime
+        changed = True
+        loggerMessage = ("[ZAPI] [host_update_restartlaunchtime] The "
+                         + "restartlaunchtime " + "of host " + host['id']
+                         + " added: " + restartlaunchtime)
+    if changed:
+        try:
+            zapi.host.update(hostid=host['id_zabbix'],
+                             macros=host['macros_zabbix'])
+        except pyzabbix.ZabbixAPIException as e:
+            logger.error("[ZAPI] [host_update_restartlaunchtime] Could not "
+                         + "update macros "
+                         + "of the host " + host['id'] + ": " + str(e))
+        else:
+            logger.info(loggerMessage)
 
 # Update the price of a host
 def host_update_price(host):
@@ -1084,27 +1135,36 @@ def associate_filesystem_device(host):
                 trailing_letter = re.sub('/dev/hd', '', d)
             else:
                 logger.error("[ZAPI] [associate_filesystem_device] Could not "
-                             + "find base for device " + d)
+                             + "find base for device " + d + " host "
+                             + host['id'])
                 return
             devices.append([base, trailing_letter])
         filesystems = []
         for f in host['filesystems']:
             base = None
             trailing_letter = None
+            back = None
             if f.find('/dev/xvd') != -1:
                 base = '/dev/xvd'
                 trailing_letter = re.sub('/dev/xvd', '', f)
+            elif f.find('/dev/nvme') != -1:
+                base = '/dev/nvme'
+                trailing_letter = re.findall(r'\D(\d)\D', f)[0]
+                back = re.findall(r'/dev/nvme\d(.*)', f)[0]
             else:
                 logger.error("[ZAPI] [associate_filesystem_device] Could not "
-                             + " find base for filesystem " + f)
+                             + "find base for filesystem " + f + " host "
+                             + host['id'])
                 return
-            filesystems.append([base, trailing_letter])
+            filesystems.append([base, trailing_letter, back])
 
         # Get the root
         for d in devices.copy():
             for f in filesystems.copy():
-                if d[1] == f[1]:
-                    association[d[0]+d[1]] = f[0] + f[1]
+                if d[1] == f[1] or (f[0] == '/dev/nvme'
+                                    and (re.sub(r'\D', '', d[1])
+                                         == str(int(f[1]) + 1))):
+                    association[d[0]+d[1]] = ''.join(filter(None,f))
                     devices.remove(d)
                     filesystems.remove(f)
 
