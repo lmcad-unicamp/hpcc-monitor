@@ -129,7 +129,7 @@ class HistoryWastage:
         logger.info("[WASTAGEAPI] [add_host] Host added " + host)
 
     # Update to the a new version
-    def update_hosts(self, host):
+    def update_hosts(self):
         for host in self.history_wastage:
             if 'prices' not in self.history_wastage[host]:
                 self.history_wastage[host]['prices'] = {}
