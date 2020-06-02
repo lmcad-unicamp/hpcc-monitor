@@ -40,6 +40,7 @@ class HistoryWastage:
                                                         'r')).read())
             except json.decoder.JSONDecodeError:
                 pass
+        self.update_hosts()
         atexit.register(self.finalization)
         # Get user wastage and quota from database
         self.users = {}
@@ -69,8 +70,6 @@ class HistoryWastage:
             pprint(self.history_wastage)
         # Update file
         (open(self.HISTORY_FILE, 'w+')).write(json.dumps(self.history_wastage))
-
-        self.update_hosts()
 
         # Update database
         if self.mode == 'monitoring':
@@ -145,7 +144,6 @@ class HistoryWastage:
 
             if 'cost' not in self.history_wastage[host]:
                 self.history_wastage[host]['cost'] = {}
-                
 
     # Get history of a host
     def get_host_history(self, host):
