@@ -454,7 +454,7 @@ def get_volumes_sequential(pricing=False, ignore={}):
                 # Ignore volumes with states to ignore (argument)
                 if 'state' in ignore and v['state'] in ignore['state']:
                     continue
-                    
+
                 if 'Tags' not in volume:
                     continue
                 tags = {item['Key']: item['Value'] for item in volume['Tags']}
@@ -475,7 +475,7 @@ def get_volumes_sequential(pricing=False, ignore={}):
                         v['attachment']['time'] = a['AttachTime'].astimezone(
                                                                     pytz.utc)
                 v['detachment'] = get_last_detachment(region,
-                                                          volume['VolumeId'])
+                                                      volume['VolumeId'])
                 v['id'] = volume['VolumeId']
                 v['type'] = volume['VolumeType']
                 v['size'] = volume['Size']
@@ -514,7 +514,6 @@ def get_volumes_parallel(region_i, volumes, region, pricing=False, ignore={}):
             if 'Tags' not in volume:
                 continue
             tags = {item['Key']: item['Value'] for item in volume['Tags']}
-
 
             # Ignore instances with tags to ignore (argument)
             if 'tags' in ignore:

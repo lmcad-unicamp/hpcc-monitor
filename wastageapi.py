@@ -3,9 +3,9 @@ import os
 import inspect
 import json
 import MySQLdb
+import atexit
 from datetime import datetime, timezone
 from pprint import pprint
-
 
 home = os.path.dirname(os.path.realpath(__file__))
 logger = logging.getLogger(str(inspect.getouterframes(inspect.currentframe()
@@ -25,10 +25,12 @@ CURRENT_MONTH = int(datetime.utcnow().replace(tzinfo=timezone.utc).month)
 class HistoryWastage:
     def __init__(self, HISTORY_FILE, mode):
         self.mode = mode
-        if self.mode == 'executing':
+        if self.mode == 'monitoring':
             self.HISTORY_FILE = HISTORY_FILE
         elif self.mode == 'testing':
-            self.HISTORY_FILE = HISTORY_FILE+'.testing'
+            self.HISTORY_FILE = HISTORY_FILE+'.test'
+        elif self.mode == 'experimenting':
+            self.HISTORY_FILE = HISTORY_FILE+'.experiment'
 
         self.history_wastage = {}
         # Get history of wastage from file
@@ -38,6 +40,7 @@ class HistoryWastage:
                                                         'r')).read())
             except json.decoder.JSONDecodeError:
                 pass
+        atexit.register(self.finalization)
         # Get user wastage and quota from database
         self.users = {}
         cursor.execute("SELECT * FROM User_Wastage")
@@ -53,20 +56,22 @@ class HistoryWastage:
                 self.users[user[0]]['permonth'] = 0.0
         if self.mode == 'testing':
             pprint(self.history_wastage)
-            #pprint(self.users)
+            # pprint(self.users)
             pprint("____________________________________________")
 
-    def __del__(self):
+    def finalization(self):
         if self.mode == 'testing':
             pprint("____________________________________________")
             pprint(self.history_wastage)
-            pprint(self.users)
-
+            # pprint(self.users)
+        if self.mode == 'experimenting':
+            pprint("____________________________________________")
+            pprint(self.history_wastage)
         # Update file
-        (open(self.HISTORY_FILE, "w+")).write(json.dumps(self.history_wastage))
+        (open(self.HISTORY_FILE, 'w+')).write(json.dumps(self.history_wastage))
 
         # Update database
-        if self.mode == 'executing':
+        if self.mode == 'monitoring':
             for user in self.users:
                 cursor.execute("UPDATE User_Wastage SET WastageTotal="
                                + str(self.users[user]['total'])
@@ -102,6 +107,10 @@ class HistoryWastage:
     def get_user_attribute(self, user, attribute):
         return self.users[user][attribute]
 
+    # Add new attribute to a host
+    def add_host_attribute(self, host, attribute, value):
+        self.history_wastage[host][attribute] = value
+
     # Delete host from history
     def delete_host(self, host):
         del self.history_wastage[host]
@@ -110,7 +119,9 @@ class HistoryWastage:
     # Add new host to history
     def add_host(self, host):
         self.history_wastage[host] = {}
-        self.history_wastage[host]['wastage'] = 0
+        self.history_wastage[host]['boot'] = {}
+        self.history_wastage[host]['cost'] = {}
+        self.history_wastage[host]['statistics'] = {}
         self.history_wastage[host]['prices'] = {}
         self.history_wastage[host]['prices']['timestamps'] = []
         self.history_wastage[host]['prices']['values'] = []
@@ -128,11 +139,49 @@ class HistoryWastage:
     def get_host_wastage(self, host, heuristic):
         return self.history_wastage[host][heuristic]['wastage']
 
+    # Set cost of a host
+    def set_host_cost(self, host, cost):
+        self.history_wastage[host]['cost'] = cost
+
+    # Get cost of a host
+    def get_host_cost(self, host):
+        return self.history_wastage[host]['cost']
+
+    # Set boot wastage of a host
+    def set_host_boot(self, host, boot):
+        self.history_wastage[host]['boot'] = boot
+
+    # Get boot wastage of a host
+    def get_host_boot(self, host):
+        return self.history_wastage[host]['boot']
+
+    # Set statistics of a host
+    def set_host_statistics(self, host, statistics):
+        self.history_wastage[host]['statistics'] = statistics
+
+    # Get statistics of a host
+    def get_host_statistics(self, host):
+        return self.history_wastage[host]['statistics']
+
+    # Get timestamp of boot wastage of a host
+    def get_host_boottimestamp(self, host):
+        return self.history_wastage[host]['boottimestamp']
+
+    # Set an attribute on heuristic
+    def set_heuristic_attribute(self, host, heuristic, attribute, value):
+        self.history_wastage[host][heuristic][attribute] = value
+
     # Set a heuristic for host if it exists:
     def set_heuristic(self, host, heuristic):
         if heuristic not in self.history_wastage[host]:
             self.history_wastage[host][heuristic] = {}
             self.history_wastage[host][heuristic]['wastage'] = 0.0
+
+    # Get heuristics attributes
+    def get_heuristic(self, host, heuristic):
+        if heuristic in self.history_wastage[host]:
+            return self.history_wastage[host][heuristic]
+        return {}
 
     # Get the last timestamp of price of host
     def get_price_timestamp(self, host):
