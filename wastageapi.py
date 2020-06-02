@@ -70,6 +70,8 @@ class HistoryWastage:
         # Update file
         (open(self.HISTORY_FILE, 'w+')).write(json.dumps(self.history_wastage))
 
+        self.update_hosts()
+
         # Update database
         if self.mode == 'monitoring':
             for user in self.users:
@@ -126,6 +128,23 @@ class HistoryWastage:
         self.history_wastage[host]['prices']['timestamps'] = []
         self.history_wastage[host]['prices']['values'] = []
         logger.info("[WASTAGEAPI] [add_host] Host added " + host)
+
+    # Update to the a new version
+    def update_host(self, host):
+        for host in self.history_wastage:
+            if 'prices' not in self.history_wastage[host]:
+                self.history_wastage[host]['prices'] = {}
+                self.history_wastage[host]['prices']['timestamps'] = []
+                self.history_wastage[host]['prices']['values'] = []
+
+            if 'statistics' not in self.history_wastage[host]:
+                self.history_wastage[host]['statistics'] = {}
+
+            if 'boot' not in self.history_wastage[host]:
+                self.history_wastage[host]['boot'] = {}
+
+            if 'cost' not in self.history_wastage[host]:
+                self.history_wastage[host]['cost'] = {}
 
     # Get history of a host
     def get_host_history(self, host):
