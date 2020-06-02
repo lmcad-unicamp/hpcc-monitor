@@ -145,6 +145,7 @@ class HistoryWastage:
 
             if 'cost' not in self.history_wastage[host]:
                 self.history_wastage[host]['cost'] = {}
+                
 
     # Get history of a host
     def get_host_history(self, host):
