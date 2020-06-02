@@ -590,6 +590,8 @@ def get_instances_sequential(pricing=False, ignore={}):
                     continue
 
                 # Get tags from instance
+                if 'Tags' not in instance:
+                    continue
                 tags = {item['Key']: item['Value']
                         for item in instance['Tags']}
 
@@ -645,13 +647,11 @@ def get_instances_sequential(pricing=False, ignore={}):
                                 ignorepricing = True
                     if not ignorepricing:
                         if i['service'] == 'ondemand':
-                            i['price'] = get_instance_pricing(region,
-                                                              instance_info
-                                                              =instance)
+                            i['price'] = get_instance_pricing(
+                                                region, instance_info=instance)
                         elif i['service'] == 'spot':
-                            i['price'] = get_spotinstance_pricing(region,
-                                                                  instance_info
-                                                                  =instance)
+                            i['price'] = get_spotinstance_pricing(
+                                                region, instance_info=instance)
                 instances.append(i)
     return instances
 
@@ -680,6 +680,8 @@ def get_instances_parallel(region_i, instances, region,
                 continue
 
             # Get tags from instance
+            if 'Tags' not in instance:
+                continue
             tags = {item['Key']: item['Value']
                     for item in instance['Tags']}
 
@@ -749,13 +751,11 @@ def get_instances_parallel(region_i, instances, region,
                             ignorepricing = True
                 if not ignorepricing:
                     if i['service'] == 'ondemand':
-                        i['price'] = get_instance_pricing(region,
-                                                          instance_info=
-                                                          instance)
+                        i['price'] = get_instance_pricing(
+                                                region, instance_info=instance)
                     elif i['service'] == 'spot':
-                        i['price'] = get_spotinstance_pricing(region,
-                                                              instance_info=
-                                                              instance)
+                        i['price'] = get_spotinstance_pricing(
+                                                region, instance_info=instance)
             instances[region_i].append(i)
     return instances[region_i]
 
