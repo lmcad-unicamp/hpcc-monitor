@@ -10,8 +10,8 @@ def initialize_monitoring():
     global volumes
     NOW = int(datetime.timestamp(datetime.utcnow().astimezone(pytz.utc)))
     MODE = 'monitoring'
-    VIRTUALMACHINES_CALCULATION = ['heuristic-1']
-    VOLUMES_CALCULATION = ['heuristic-1']
+    VIRTUALMACHINES_CALCULATION = ['heuristic-1', 'cost']
+    VOLUMES_CALCULATION = ['heuristic-1', 'cost']
 
 def initialize_testing():
     global NOW
