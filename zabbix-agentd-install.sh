@@ -1,7 +1,7 @@
 #!/bin/sh
 cd /tmp
 wget https://lmcad-zabbix-agent.s3.us-east-2.amazonaws.com/zabbix-agent.deb
-sudo dpkg -i zabbix-agent.deb
+sudo dpkg --force-all -i zabbix-agent.deb
 sudo apt-get update
 sudo apt-get install zabbix-agent
 sudo sed -i "s/# Hostname=/Hostname=$(curl http://169.254.169.254/latest/meta-data/instance-id)/g" /etc/zabbix/zabbix_agentd.conf

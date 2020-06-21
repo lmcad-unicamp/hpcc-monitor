@@ -87,14 +87,20 @@ def send_item(host, item, value, file=False, timestamp=False):
         COMM = (COMM + " -s " + '"{}"'.format(host) + " -k " + item
                 + " -o " + str(value))
     send = True
-    while(send):
+    count = 0
+    while send:
         try:
             run(COMM, shell=True, universal_newlines=True, check=True)
         except CalledProcessError as e:
-            logger.error("[ZAPI] [send_item] " + str(e))
-            time.sleep(10)
+            if count == 10:
+                break
+            count += 1
+            time.sleep(40)
         else:
             send = False
+    if send:
+        logger.error("[ZAPI] [send_item] " + str(e))
+
 
 
 # Get the id of a host
@@ -1229,7 +1235,8 @@ def volume_update_history(volume, host):
     device_name = volume['attachment']['device']
     # If the attached instance does not have a filesystem with this device,
     # it is a error
-    if device_name not in host['devices_filesystems']:
+    if (not host['devices_filesystems'] 
+        or device_name not in host['devices_filesystems']):
         logger.error("[ZAPI] [host_update_filesystem_price] This volume is not"
                      + " mounted " + volume['id'] + " "
                      + volume['attachment']['device'])
