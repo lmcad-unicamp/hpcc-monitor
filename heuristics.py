@@ -30,11 +30,12 @@ virtualmachines_heuristics = {
 
 volumes_heuristics = {'heuristic-1': 'volume.space.free'}
 
-
 # This functions get statistics about resources
-def virtualmachines_statistics(host, virtualmachines, monitorserver):
+def virtualmachines_statistics(host, virtualmachines, monitorserver,
+                               timelapse=None):
     # Get the statistics history
-    statistics_history = virtualmachines.get_host_statistics(host['id'])
+    statistics_history = virtualmachines.get_host_statistics(host['id'],
+                                                        timelapse=timelapse)
 
     # For each resource
     for item in [r for r in resource_statistics if r in host['items']]:
@@ -43,7 +44,11 @@ def virtualmachines_statistics(host, virtualmachines, monitorserver):
             statistics_history[resource] = {'amount': 0, 'timestamp': 0,
                                             'max': 0, 'min': 100, 'mean': 0}
         # Get the values of the item since the last value requested till now
-        values = monitorserver.get_history(
+        if timelapse:
+            values = monitorserver.get_history(host=host, itemkey=item, 
+                                        till=timelapse[1], since=timelapse[0])
+        else:
+            values = monitorserver.get_history(
                             host=host, itemkey=item, till=cs.NOW,
                             since=statistics_history[resource]['timestamp'])
 
@@ -60,10 +65,13 @@ def virtualmachines_statistics(host, virtualmachines, monitorserver):
                     / (statistics_history[resource]['amount'] + 1))
                 statistics_history[resource]['amount'] += 1
         statistics_history[resource]['timestamp'] = cs.NOW
+        virtualmachines.set_host_statistics(host['id'], statistics_history,
+                                            timelapse=timelapse)
 
 
 # This calculates the host total cost and delay boot
-def virtualmachine_cost(host, virtualmachines, monitorserver):
+def virtualmachine_cost(host, virtualmachines, monitorserver, 
+                        timelapse=None):
     # Get launchtime and restartlaunchtime and convert to timestamp
     launchtime = 0
     if 'launchtime' in host:
@@ -73,11 +81,13 @@ def virtualmachine_cost(host, virtualmachines, monitorserver):
         restartlaunchtime = int(datetime.timestamp(host['restartlaunchtime']))
 
     # Get cost and boot history
-    cost_history = virtualmachines.get_host_cost(host['id'])
+    cost_history = virtualmachines.get_host_cost(host['id'], 
+                                                 timelapse=timelapse)
     if not cost_history:
         cost_history = {'total': 0.0, 'timestamp': launchtime}
 
-    boot_history = virtualmachines.get_host_boot(host['id'])
+    boot_history = virtualmachines.get_host_boot(host['id'],
+                                                 timelapse=timelapse)
     if not boot_history:
         boot_history = {'wastage': 0.0, 'timestamp': 0, 'values': []}
 
@@ -88,29 +98,53 @@ def virtualmachine_cost(host, virtualmachines, monitorserver):
     timestamp_difference = int(monitorserver.convert_to_second(item_delay))
 
     # Get the values of the item since the last value requested till now
-    values = monitorserver.get_history(host=host, itemkey=item, till=cs.NOW,
-                                       since=cost_history['timestamp'])
+    if timelapse:
+        values = monitorserver.get_history(host=host, itemkey=item, 
+                                        till=timelapse[1], since=timelapse[0])
+    else:
+        values = monitorserver.get_history(host=host, itemkey=item, till=cs.NOW,
+                                           since=cost_history['timestamp'])
     # If there is new values
     if values:
         # Calculate the boot wastage
-        if (boot_history['timestamp'] == 0
-           or boot_history['timestamp'] != restartlaunchtime):
-            boot_time = (values[0]['timestamp'] - restartlaunchtime
-                         - timestamp_difference)
-            boot_price = virtualmachines.find_price(host['id'],
-                                                    restartlaunchtime)
-            boot_wastage = (boot_time/timestamp_difference
-                            * boot_price * value_delay)
-            boot_history['wastage'] += boot_wastage
-            boot_history['values'].append(boot_time)
-            boot_history['timestamp'] = restartlaunchtime
-            virtualmachines.set_host_boot(host['id'], boot_history)
+        if cs.MODE == 'monitoring':
+            if (boot_history['timestamp'] == 0
+            or boot_history['timestamp'] != restartlaunchtime):
+                boot_time = (values[0]['timestamp'] - restartlaunchtime
+                            - timestamp_difference)
+                
+                boot_price = virtualmachines.find_price(host['id'],
+                                                        restartlaunchtime)
+                boot_wastage = (boot_time/timestamp_difference
+                                * boot_price * value_delay)
+                boot_history['wastage'] += boot_wastage
+                boot_history['values'].append(boot_time)
+                boot_history['timestamp'] = restartlaunchtime
+                virtualmachines.set_host_boot(host['id'], boot_history, 
+                                            timelapse=timelapse)
 
-            # Send to montior server
-            if cs.MODE == 'monitoring':
-                monitorserver.send_item(host['id'], 'boot',
-                                        boot_history['wastage'])
-
+                # Send to montior server
+                if cs.MODE == 'monitoring':
+                    monitorserver.send_item(host['id'], 'boot',
+                                            boot_history['wastage'])
+        else:
+            boot_value = 0
+            if timelapse:
+                boot_values = monitorserver.get_history(host=host, itemkey='boot', 
+                                till=timelapse[1], since=timelapse[0])
+            else:
+                boot_values = monitorserver.get_history(host=host, 
+                                    itemkey='boot', till=cs.NOW, 
+                                    since=boot_history['timestamp'])
+            for v in boot_values:
+                boot_value += v['value']
+            boot_history['wastage'] = boot_value
+            boot_history['values'] = [v['value'] for v in boot_values]
+            boot_history['timestamp'] = [v['timestamp'] for v in boot_values]
+            virtualmachines.set_host_boot(host['id'], boot_history, 
+                                            timelapse=timelapse)
+                
+            
         # Calculate the cost of each sample of value, based onf price history
         cost_calculated = 0.0
         for v in values:
@@ -123,7 +157,8 @@ def virtualmachine_cost(host, virtualmachines, monitorserver):
         # Update cost history
         cost_history['total'] += cost_calculated
         cost_history['timestamp'] = values[-1]['timestamp']
-        virtualmachines.set_host_cost(host['id'], cost_history)
+        virtualmachines.set_host_cost(host['id'], cost_history,
+                                      timelapse=timelapse)
 
         # Send to montior server
         if cs.MODE == 'monitoring':
@@ -131,9 +166,10 @@ def virtualmachine_cost(host, virtualmachines, monitorserver):
 
 
 # In this heuristic, each family of instances has a specific item to look
-def virtualmachine_wastage_heuristic1(host, virtualmachines, monitorserver):
+def virtualmachine_wastage_heuristic1(host, virtualmachines, monitorserver, 
+                                      timelapse=None):
     HEURISTIC = 'heuristic-1'
-    virtualmachines.set_heuristic(host['id'], HEURISTIC)
+    virtualmachines.set_heuristic(host['id'], HEURISTIC, timelapse=timelapse)
 
     launchtime = 0
     if 'launchtime' in host:
@@ -145,12 +181,16 @@ def virtualmachine_wastage_heuristic1(host, virtualmachines, monitorserver):
     value_delay = monitorserver.convert_to_hour(item_delay)
     # Get the history of this item
     item_history = virtualmachines.get_item_history(host['id'], HEURISTIC,
-                                                    item)
+                                                    item, timelapse=timelapse)
     # If the item does not have a history
     if not item_history:
         item_history = {'sum': 0.0, 'timestamp': launchtime, 'len': 0}
     # Get the values of the item since the last value requested till now
-    values = monitorserver.get_history(host=host, itemkey=item, till=cs.NOW,
+    if timelapse:
+        values = monitorserver.get_history(host=host, itemkey=item, 
+                                        till=timelapse[1], since=timelapse[0])
+    else:
+        values = monitorserver.get_history(host=host, itemkey=item, till=cs.NOW,
                                        since=item_history['timestamp'])
 
     # If there is new values
@@ -175,14 +215,16 @@ def virtualmachine_wastage_heuristic1(host, virtualmachines, monitorserver):
         item_history['timestamp'] = values[-1]['timestamp']
         item_history['len'] += len(values)
         virtualmachines.set_item_history(host['id'], HEURISTIC, item,
-                                         item_history)
+                                         item_history, timelapse=timelapse)
 
         # Get the wastage of the host and sum with the wastage calculated
         host_heuristic_wastage_calculated = (
-                    virtualmachines.get_host_wastage(host['id'], HEURISTIC))
+                    virtualmachines.get_host_wastage(host['id'], HEURISTIC,
+                                                     timelapse=timelapse))
         host_heuristic_wastage_calculated += item_wastage_calculated
         virtualmachines.set_host_wastage(host['id'], HEURISTIC,
-                                         host_heuristic_wastage_calculated)
+                                         host_heuristic_wastage_calculated,
+                                         timelapse=timelapse)
 
         # Send to montior server
         if cs.MODE == 'monitoring':
@@ -191,9 +233,10 @@ def virtualmachine_wastage_heuristic1(host, virtualmachines, monitorserver):
 
 
 # In this heuristic, we calculate based on all resources
-def virtualmachine_wastage_heuristic2(host, virtualmachines, monitorserver):
+def virtualmachine_wastage_heuristic2(host, virtualmachines, monitorserver, 
+                                      timelapse=None):
     HEURISTIC = 'heuristic-2'
-    virtualmachines.set_heuristic(host['id'], HEURISTIC)
+    virtualmachines.set_heuristic(host['id'], HEURISTIC, timelapse=timelapse)
     launchtime = 0
     if 'launchtime' in host:
         launchtime = int(datetime.timestamp(host['launchtime']))
@@ -202,7 +245,8 @@ def virtualmachine_wastage_heuristic2(host, virtualmachines, monitorserver):
     for item in virtualmachines_heuristics[HEURISTIC][host['family']]:
         # Get the history of this item
         item_history = virtualmachines.get_item_history(host['id'],
-                                                        HEURISTIC, item)
+                                                        HEURISTIC, item,
+                                                        timelapse=timelapse)
         # Convert the sample time to hour (which is the unit for prices)
         item_delay = host['items'][item]['delay']
         value_delay = monitorserver.convert_to_hour(item_delay)
@@ -211,7 +255,11 @@ def virtualmachine_wastage_heuristic2(host, virtualmachines, monitorserver):
         if not item_history:
             item_history = {'sum': 0.0, 'timestamp': launchtime, 'len': 0}
         # Get the values of the item since last value requested till now
-        values = monitorserver.get_history(host=host,
+        if timelapse:
+            values = monitorserver.get_history(host=host, itemkey=item, 
+                                        till=timelapse[1], since=timelapse[0])
+        else:
+            values = monitorserver.get_history(host=host,
                                            itemkey=item, till=cs.NOW,
                                            since=item_history['timestamp'])
 
@@ -238,15 +286,17 @@ def virtualmachine_wastage_heuristic2(host, virtualmachines, monitorserver):
             item_history['timestamp'] = values[-1]['timestamp']
             item_history['len'] = len(values)
             virtualmachines.set_item_history(host['id'], HEURISTIC, item,
-                                             item_history)
+                                             item_history, timelapse=timelapse)
 
             # Get wastage of the host and sum with the wastage calculated
             host_heuristic_wastage_calculated = (
-                            virtualmachines.get_host_wastage(host['id'],
-                                                             HEURISTIC))
+                            virtualmachines.get_host_wastage(
+                                                    host['id'], HEURISTIC, 
+                                                    timelapse=timelapse))
             host_heuristic_wastage_calculated += item_wastage_calculated
             virtualmachines.set_host_wastage(
-                    host['id'], HEURISTIC, host_heuristic_wastage_calculated)
+                    host['id'], HEURISTIC, host_heuristic_wastage_calculated,
+                    timelapse=timelapse)
 
             # Send to montior server
             if cs.MODE == 'monitoring':
@@ -255,10 +305,11 @@ def virtualmachine_wastage_heuristic2(host, virtualmachines, monitorserver):
 
 
 # In this heuristic, we calculate based on all resources and divide the price
-def virtualmachine_wastage_heuristic3(host, virtualmachines, monitorserver):
+def virtualmachine_wastage_heuristic3(host, virtualmachines, monitorserver, 
+                                      timelapse=None):
     HEURISTIC = 'heuristic-3'
     launchtime = 0
-    virtualmachines.set_heuristic(host['id'], HEURISTIC)
+    virtualmachines.set_heuristic(host['id'], HEURISTIC, timelapse)
     if 'launchtime' in host:
         launchtime = int(datetime.timestamp(host['launchtime']))
     items_len = len(virtualmachines_heuristics['heuristic-2'][host['family']])
@@ -266,7 +317,7 @@ def virtualmachine_wastage_heuristic3(host, virtualmachines, monitorserver):
     for item in virtualmachines_heuristics['heuristic-2'][host['family']]:
         # Get the history of this item
         item_history = virtualmachines.get_item_history(host['id'], HEURISTIC,
-                                                        item)
+                                                    item, timelapse=timelapse)
         # Convert the sample time to hour (which is the unit for prices)
         item_delay = host['items'][item]['delay']
         value_delay = monitorserver.convert_to_hour(item_delay)
@@ -274,7 +325,11 @@ def virtualmachine_wastage_heuristic3(host, virtualmachines, monitorserver):
         if not item_history:
             item_history = {'sum': 0.0, 'timestamp': launchtime, 'len': 0}
         # Get the values of the item since last value requested till now
-        values = monitorserver.get_history(host=host,
+        if timelapse:
+            values = monitorserver.get_history(host=host, itemkey=item, 
+                                        till=timelapse[1], since=timelapse[0])
+        else:
+            values = monitorserver.get_history(host=host,
                                            itemkey=item, till=cs.NOW,
                                            since=item_history['timestamp'])
 
@@ -302,15 +357,17 @@ def virtualmachine_wastage_heuristic3(host, virtualmachines, monitorserver):
             item_history['timestamp'] = values[-1]['timestamp']
             item_history['len'] = len(values)
             virtualmachines.set_item_history(host['id'], HEURISTIC, item,
-                                             item_history)
+                                             item_history, timelapse=timelapse)
 
             # Get wastage of the host and sum with the wastage calculated
             host_heuristic_wastage_calculated = (
-                            virtualmachines.get_host_wastage(host['id'],
-                                                             HEURISTIC))
+                            virtualmachines.get_host_wastage(
+                                                        host['id'], HEURISTIC,
+                                                        timelapse=timelapse))
             host_heuristic_wastage_calculated += item_wastage_calculated
             virtualmachines.set_host_wastage(
-                    host['id'], HEURISTIC, host_heuristic_wastage_calculated)
+                    host['id'], HEURISTIC, host_heuristic_wastage_calculated,
+                    timelapse=timelapse)
 
             # Send to montior server
             if cs.MODE == 'monitoring':

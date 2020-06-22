@@ -126,6 +126,9 @@ class HistoryWastage:
         self.history_wastage[host]['prices'] = {}
         self.history_wastage[host]['prices']['timestamps'] = []
         self.history_wastage[host]['prices']['values'] = []
+        self.history_wastage[host]['types'] = {}
+        self.history_wastage[host]['types']['timestamps'] = []
+        self.history_wastage[host]['types']['values'] = []
         logger.info("[WASTAGEAPI] [add_host] Host added " + host)
 
     # Update to the a new version
@@ -136,6 +139,11 @@ class HistoryWastage:
                 self.history_wastage[host]['prices']['timestamps'] = []
                 self.history_wastage[host]['prices']['values'] = []
 
+            if 'types' not in self.history_wastage[host]:
+                self.history_wastage[host]['types'] = {}
+                self.history_wastage[host]['types']['timestamps'] = []
+                self.history_wastage[host]['types']['values'] = []
+
             if 'statistics' not in self.history_wastage[host]:
                 self.history_wastage[host]['statistics'] = {}
 
@@ -145,41 +153,78 @@ class HistoryWastage:
             if 'cost' not in self.history_wastage[host]:
                 self.history_wastage[host]['cost'] = {}
 
+    # Conver timelapse to string
+    def timelapse_str(self, timelapse):
+        return str(timelapse[0])+'-'+str(timelapse[1])
+
     # Get history of a host
     def get_host_history(self, host):
         return self.history_wastage[host]
 
     # Set wastage of a host
-    def set_host_wastage(self, host, heuristic, wastage):
-        self.history_wastage[host][heuristic]['wastage'] = wastage
+    def set_host_wastage(self, host, heuristic, wastage, timelapse=None):
+        if timelapse:
+            timelapse = self.timelapse_str(timelapse)
+            self.history_wastage[host][timelapse][
+                                                heuristic]['wastage'] = wastage
+        else:
+            self.history_wastage[host][heuristic]['wastage'] = wastage
 
     # Get wastage of a host
-    def get_host_wastage(self, host, heuristic):
-        return self.history_wastage[host][heuristic]['wastage']
+    def get_host_wastage(self, host, heuristic, timelapse=None):
+        if timelapse:
+            timelapse = self.timelapse_str(timelapse)
+            return self.history_wastage[host][timelapse][heuristic]['wastage']
+        else:
+            return self.history_wastage[host][heuristic]['wastage']
 
     # Set cost of a host
-    def set_host_cost(self, host, cost):
-        self.history_wastage[host]['cost'] = cost
+    def set_host_cost(self, host, cost, timelapse=None):
+        if timelapse:
+            timelapse = self.timelapse_str(timelapse)
+            self.history_wastage[host][timelapse]['cost'] = cost
+        else:
+            self.history_wastage[host]['cost'] = cost
 
     # Get cost of a host
-    def get_host_cost(self, host):
-        return self.history_wastage[host]['cost']
+    def get_host_cost(self, host, timelapse=None):
+        if timelapse:
+            timelapse = self.timelapse_str(timelapse)
+            return self.history_wastage[host][timelapse]['cost']
+        else:
+            return self.history_wastage[host]['cost']
 
     # Set boot wastage of a host
-    def set_host_boot(self, host, boot):
-        self.history_wastage[host]['boot'] = boot
+    def set_host_boot(self, host, boot, timelapse=None):
+        if timelapse:
+            timelapse = self.timelapse_str(timelapse)
+            self.history_wastage[host][timelapse]['boot'] = boot
+        else:
+            self.history_wastage[host]['boot'] = boot
 
     # Get boot wastage of a host
-    def get_host_boot(self, host):
-        return self.history_wastage[host]['boot']
+    def get_host_boot(self, host, timelapse=None):
+        if timelapse:
+            timelapse = self.timelapse_str(timelapse)
+            return self.history_wastage[host][timelapse]['boot']
+        else:
+            return self.history_wastage[host]['boot']
 
     # Set statistics of a host
-    def set_host_statistics(self, host, statistics):
-        self.history_wastage[host]['statistics'] = statistics
+    def set_host_statistics(self, host, statistics, timelapse=None):
+        if timelapse:
+            timelapse = self.timelapse_str(timelapse)
+            self.history_wastage[host][timelapse]['statistics'] = statistics
+        else:
+            self.history_wastage[host]['statistics'] = statistics
 
     # Get statistics of a host
-    def get_host_statistics(self, host):
-        return self.history_wastage[host]['statistics']
+    def get_host_statistics(self, host, timelapse=None):
+        if timelapse:
+            timelapse = self.timelapse_str(timelapse)
+            return self.history_wastage[host][timelapse]['statistics']
+        else:
+            return self.history_wastage[host]['statistics']
 
     # Get timestamp of boot wastage of a host
     def get_host_boottimestamp(self, host):
@@ -190,16 +235,29 @@ class HistoryWastage:
         self.history_wastage[host][heuristic][attribute] = value
 
     # Set a heuristic for host if it exists:
-    def set_heuristic(self, host, heuristic):
-        if heuristic not in self.history_wastage[host]:
-            self.history_wastage[host][heuristic] = {}
-            self.history_wastage[host][heuristic]['wastage'] = 0.0
+    def set_heuristic(self, host, heuristic, timelapse=None):
+        if timelapse:
+            timelapse = self.timelapse_str(timelapse)
+            if heuristic not in self.history_wastage[host][timelapse]:
+                self.history_wastage[host][timelapse][heuristic] = {}
+                self.history_wastage[host][timelapse][
+                                                    heuristic]['wastage'] = 0.0
+        else:
+            if heuristic not in self.history_wastage[host]:
+                self.history_wastage[host][heuristic] = {}
+                self.history_wastage[host][heuristic]['wastage'] = 0.0
 
     # Get heuristics attributes
-    def get_heuristic(self, host, heuristic):
-        if heuristic in self.history_wastage[host]:
-            return self.history_wastage[host][heuristic]
-        return {}
+    def get_heuristic(self, host, heuristic, timelapse=None):
+        if timelapse:
+            timelapse = self.timelapse_str(timelapse)
+            if heuristic in self.history_wastage[host][timelapse]:
+                return self.history_wastage[host][timelapse][heuristic]
+            return {}
+        else:
+            if heuristic in self.history_wastage[host]:
+                return self.history_wastage[host][heuristic]
+            return {}
 
     # Get the last timestamp of price of host
     def get_price_timestamp(self, host):
@@ -213,7 +271,6 @@ class HistoryWastage:
         if len(self.history_wastage[host]['prices']['values']) > 0:
             return True
         return False
-
     # Get price of the host in a specific timestamp
     def find_price(self, host, timestamp):
         prices = self.history_wastage[host]['prices']
@@ -253,13 +310,87 @@ class HistoryWastage:
                                                                 new_timestamps)
         self.history_wastage[host]['prices']['values'].extend(new_values)
 
-    # Get history of an item
-    def get_item_history(self, host, HEURISTIC, item):
-        if item in self.history_wastage[host][HEURISTIC]:
-            return self.history_wastage[host][HEURISTIC][item]
+    # Get the last timestamp of type of host
+    def get_type_timestamp(self, host):
+        if self.history_wastage[host]['types']['timestamps']:
+            return self.history_wastage[host]['types']['timestamps'][-1]
         else:
-            return {}
+            return 0
+
+    # Check if ther is any type history on host
+    def has_type(self, host):
+        if len(self.history_wastage[host]['types']['values']) > 0:
+            return True
+        return False
+
+    # Get type of the host in a specific timestamp
+    def find_type(self, host, timestamp):
+        types = self.history_wastage[host]['types']
+        for i in reversed(range(len(types['timestamps']))):
+            if types['timestamps'][i] <= timestamp:
+                return types['values'][i]
+        return types['values'][0]
+
+    # Get types between two timestamps
+    def find_types(self, host, begin, end):
+        types = self.history_wastage[host]['types']
+        period_types = []
+        for i in reversed(range(len(types['timestamps']))):
+            if types['timestamps'][i] <= int(end):
+                if types['timestamps'][i] > int(begin):
+                    period_types.append([types['values'][i],
+                                        types['timestamps'][i]])
+                else:
+                    period_types.append([types['values'][i],
+                                        types['timestamps'][i]])
+                    break
+        if len(period_types) == 0:
+            period_types = [[types['values'][0], int(begin)]]
+        else:
+            period_types.reverse()
+            period_types[0][1] = int(begin)
+        return period_types
+
+    # Set the history of type of host
+    def set_type_history(self, host, values):
+        new_timestamps = []
+        new_values = []
+        for v in values:
+            new_timestamps.append(int(v['timestamp']))
+            new_values.append(v['value'])
+        self.history_wastage[host]['types']['timestamps'].extend(
+                                                                new_timestamps)
+        self.history_wastage[host]['types']['values'].extend(new_values)
+
+    # Get history of an item
+    def get_item_history(self, host, HEURISTIC, item, timelapse=None):
+        if timelapse:
+            timelapse = self.timelapse_str(timelapse)
+            if item in self.history_wastage[host][timelapse][HEURISTIC]:
+                return self.history_wastage[host][timelapse][HEURISTIC][item]
+            else:
+                return {}
+        else:
+            if item in self.history_wastage[host][HEURISTIC]:
+                return self.history_wastage[host][HEURISTIC][item]
+            else:
+                return {}
 
     # Set history to an item
-    def set_item_history(self, host, HEURISTIC, item, history):
-        self.history_wastage[host][HEURISTIC][item] = history
+    def set_item_history(self, host, HEURISTIC, item, history, timelapse=None):
+        if timelapse:
+            timelapse = self.timelapse_str(timelapse)
+            self.history_wastage[host][timelapse][HEURISTIC][item] = history
+        else:
+            self.history_wastage[host][HEURISTIC][item] = history
+
+    # Set a timelapse for host if it exists:
+    def add_timelapse(self, host, timelapse):
+        timelapsestr = self.timelapse_str(timelapse)
+        if timelapsestr not in self.history_wastage[host]:
+            self.history_wastage[host][timelapsestr] = {}
+            self.history_wastage[host][timelapsestr]['cost'] = {}
+            self.history_wastage[host][timelapsestr]['boot'] = {}
+            self.history_wastage[host][timelapsestr]['statistics'] = {}
+            self.history_wastage[host][timelapsestr]['type'] = self.find_types(
+                                    host, timelapse[0], timelapse[1])

@@ -340,11 +340,12 @@ def get_hosts(resource, output=None, filter=None, macros=None, triggers=None,
             if get and 'tags' in get:
                 if not host['tags']:
                     continue
+                noTag = True
                 for t in host['tags']:
-                    flag = False
-                    if t['tag'] not in get['tags']:
-                        flag = True
-                if flag:
+                    if t['tag'] in get['tags']:
+                        if t['value'] == get['tags'][t['tag']]:
+                            noTag = False
+                if noTag:
                     continue
 
             host['filesystems'] = []
@@ -778,6 +779,7 @@ def host_update_type(host):
                          + host['id'] + " added: " + host['type'])
     if changed:
         try:
+            send_item(host['id'], 'cloud.type', host['type'])
             zapi.host.update(hostid=host['id_zabbix'],
                              macros=host['macros_zabbix'])
         except pyzabbix.ZabbixAPIException as e:
@@ -785,6 +787,11 @@ def host_update_type(host):
                          + "of the host " + host['id'] + ": " + str(e))
         else:
             logger.info(loggerMessage)
+    
+    history_type = get_history(host=host, itemkey='cloud.type',
+                                since=0, till=NOW, limit=1)
+    if not history_type:
+        send_item(host['id'], 'cloud.type', host['type'])
 
 
 # Update size of a host
@@ -825,9 +832,9 @@ def host_update_size(host):
             logger.info(loggerMessage)
         return
 
-    history_price = get_history(host=host, itemkey='volume.size',
+    history_size = get_history(host=host, itemkey='volume.size',
                                 since=0, till=NOW, limit=1)
-    if not history_price:
+    if not history_size:
         send_item(host['id'], 'volume.size', host['size'])
 
 
