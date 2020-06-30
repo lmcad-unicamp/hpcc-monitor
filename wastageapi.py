@@ -30,11 +30,11 @@ class HistoryWastage:
         elif self.mode == 'testing':
             self.HISTORY_FILE = HISTORY_FILE+'.test'
         elif self.mode == 'experimenting':
-            self.HISTORY_FILE = HISTORY_FILE+'.experiment'
+            self.HISTORY_FILE = ''
 
         self.history_wastage = {}
         # Get history of wastage from file
-        if os.path.isfile(self.HISTORY_FILE):
+        if self.mode != 'experimenting' and os.path.isfile(self.HISTORY_FILE):
             try:
                 self.history_wastage = json.loads((open(self.HISTORY_FILE,
                                                         'r')).read())
@@ -69,7 +69,8 @@ class HistoryWastage:
             pprint("____________________________________________")
             pprint(self.history_wastage)
         # Update file
-        (open(self.HISTORY_FILE, 'w+')).write(json.dumps(self.history_wastage))
+        if self.mode != 'experimenting':
+            (open(self.HISTORY_FILE, 'w+')).write(json.dumps(self.history_wastage))
 
         # Update database
         if self.mode == 'monitoring':
@@ -391,6 +392,10 @@ class HistoryWastage:
             self.history_wastage[host][timelapsestr] = {}
             self.history_wastage[host][timelapsestr]['cost'] = {}
             self.history_wastage[host][timelapsestr]['boot'] = {}
+            self.history_wastage[host][timelapsestr]['time'] = (timelapse[1] -
+                                                                timelapse[0])
             self.history_wastage[host][timelapsestr]['statistics'] = {}
             self.history_wastage[host][timelapsestr]['type'] = self.find_types(
+                                    host, timelapse[0], timelapse[1])
+            self.history_wastage[host][timelapsestr]['price'] = self.find_prices(
                                     host, timelapse[0], timelapse[1])

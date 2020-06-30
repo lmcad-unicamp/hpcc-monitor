@@ -669,94 +669,94 @@ def get_instances_parallel(region_i, instances, region,
         pass
     else:
         # For each instance, we get attributes from the it
-        for instance in [i['Instances'][0]
+        for group in [i['Instances']
                          for i in clientinstances['Reservations']]:
-            i = {}
-
-            # Get the state of the instance
-            i['state'] = instance['State']['Name']
-            # Ignore instances with states to ignore (argument)
-            if 'state' in ignore and i['state'] in ignore['state']:
-                continue
-
-            # Get tags from instance
-            if 'Tags' not in instance:
-                continue
-            tags = {item['Key']: item['Value']
-                    for item in instance['Tags']}
-
-            # Ignore instances with tags to ignore (argument)
-            if 'tags' in ignore:
-                if [True for t in ignore['tags']
-                   if t in tags and tags[t] in ignore['tags'][t]]:
+            for instance in group:
+                i = {}
+                # Get the state of the instance
+                i['state'] = instance['State']['Name']
+                # Ignore instances with states to ignore (argument)
+                if 'state' in ignore and i['state'] in ignore['state']:
                     continue
 
-            # If it is spot
-            if 'SpotInstanceRequestId' in instance:
-                i['service'] = 'spot'
-                i['service_id'] = instance['SpotInstanceRequestId']
-            else:
-                i['service'] = 'ondemand'
-                i['service_id'] = instance['InstanceId']
-            i['user'] = tags['owner']
-            i['id'] = instance['InstanceId']
-            i['type'] = instance['InstanceType']
-            i['family'] = get_instance_family(instance['InstanceType'])
-            i['launchtime'] = instance['LaunchTime'].astimezone(pytz.utc)
-            i['restartlaunchtime'] = (
-                            instance['LaunchTime'].astimezone(pytz.utc))
-            i['provider'] = 'aws'
+                # Get tags from instance
+                if 'Tags' not in instance:
+                    continue
+                tags = {item['Key']: item['Value']
+                        for item in instance['Tags']}
 
-            i['devices'] = []
-            for v in instance['BlockDeviceMappings']:
-                volume = {}
-                volume['device'] = v['DeviceName']
-                if 'Ebs' in v:
-                    volume['state'] = v['Ebs']['Status']
-                    volume['time'] = v['Ebs']['AttachTime']
-                    volume['id'] = v['Ebs']['VolumeId']
+                # Ignore instances with tags to ignore (argument)
+                if 'tags' in ignore:
+                    if [True for t in ignore['tags']
+                    if t in tags and tags[t] in ignore['tags'][t]]:
+                        continue
+
+                # If it is spot
+                if 'SpotInstanceRequestId' in instance:
+                    i['service'] = 'spot'
+                    i['service_id'] = instance['SpotInstanceRequestId']
                 else:
-                    volume['state'] = None
-                    volume['time'] = None
-                    volume['id'] = None
-                i['devices'].append(volume)
-            i['devices'] = sorted(i['devices'], key=itemgetter('time'))
+                    i['service'] = 'ondemand'
+                    i['service_id'] = instance['InstanceId']
+                i['user'] = tags['owner']
+                i['id'] = instance['InstanceId']
+                i['type'] = instance['InstanceType']
+                i['family'] = get_instance_family(instance['InstanceType'])
+                i['launchtime'] = instance['LaunchTime'].astimezone(pytz.utc)
+                i['restartlaunchtime'] = (
+                                instance['LaunchTime'].astimezone(pytz.utc))
+                i['provider'] = 'aws'
 
-            # Get instance image infos
-            image_id = instance['ImageId']
-            image = client.describe_images(ImageIds=[image_id])
+                i['devices'] = []
+                for v in instance['BlockDeviceMappings']:
+                    volume = {}
+                    volume['device'] = v['DeviceName']
+                    if 'Ebs' in v:
+                        volume['state'] = v['Ebs']['Status']
+                        volume['time'] = v['Ebs']['AttachTime']
+                        volume['id'] = v['Ebs']['VolumeId']
+                    else:
+                        volume['state'] = None
+                        volume['time'] = None
+                        volume['id'] = None
+                    i['devices'].append(volume)
+                i['devices'] = sorted(i['devices'], key=itemgetter('time'))
 
-            if not image['Images']:
-                logger.error("[AWS] [get_instance_pricing] Image "
-                             + str(image_id)
-                             + " does not exist, using default information."
-                             + " Instance " + instance['InstanceId'])
-                i['os'] = 'Linux'
-            else:
-                i['os'] = find_operatingsystem(image['Images'][0]
-                                               ['PlatformDetails'])
+                # Get instance image infos
+                image_id = instance['ImageId']
+                image = client.describe_images(ImageIds=[image_id])
 
-            # The region comes like 'us-east-1b',
-            # we use regex to eliminate the final character
-            i['region'] = re.sub(r'\D$', '',
-                                 instance['Placement']['AvailabilityZone'])
+                if not image['Images']:
+                    logger.error("[AWS] [get_instance_pricing] Image "
+                                + str(image_id)
+                                + " does not exist, using default information."
+                                + " Instance " + instance['InstanceId'])
+                    i['os'] = 'Linux'
+                else:
+                    i['os'] = find_operatingsystem(image['Images'][0]
+                                                ['PlatformDetails'])
 
-            # Get price
-            i['price'] = None
-            if pricing:
-                ignorepricing = False
-                if 'price' in ignore:
-                    for p in ignore['price']:
-                        if i[p] in ignore['price'][p]:
-                            ignorepricing = True
-                if not ignorepricing:
-                    if i['service'] == 'ondemand':
-                        i['price'] = get_instance_pricing(
-                                                region, instance_info=instance)
-                    elif i['service'] == 'spot':
-                        i['price'] = get_spotinstance_pricing(
-                                                region, instance_info=instance)
-            instances[region_i].append(i)
+                # The region comes like 'us-east-1b',
+                # we use regex to eliminate the final character
+                i['region'] = re.sub(r'\D$', '',
+                                    instance['Placement']['AvailabilityZone'])
+
+                # Get price
+                i['price'] = None
+                if pricing:
+                    ignorepricing = False
+                    if 'price' in ignore:
+                        for p in ignore['price']:
+                            if i[p] in ignore['price'][p]:
+                                ignorepricing = True
+                    if not ignorepricing:
+                        if i['service'] == 'ondemand':
+                            i['price'] = get_instance_pricing(
+                                                    region, instance_info=instance)
+                        elif i['service'] == 'spot':
+                            i['price'] = get_spotinstance_pricing(
+                                                    region, instance_info=instance)
+                instances[region_i].append(i)
     return instances[region_i]
 
 

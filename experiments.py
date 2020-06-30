@@ -5,8 +5,8 @@ import heuristics
 import calculatorsetting as cs
 from wastageapi import HistoryWastage
 from pprint import pprint
-EXP = 'exp-def-dnnrom'
-TIMES = 'experiments/exp3-dnnrom/times.txt'
+EXP = "exp-blast"
+TIMES = 'experiments/exp3-blast/results.out'
 timelapses = {}
 if os.path.isfile(TIMES):
     f = open(TIMES, 'r')
