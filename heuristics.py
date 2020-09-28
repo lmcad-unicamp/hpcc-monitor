@@ -52,7 +52,7 @@ def virtualmachines_statistics(host, virtualmachines, monitorserver,
                             host=host, itemkey=item, till=cs.NOW,
                             since=statistics_history[resource]['timestamp'])
 
-        # If there is new values
+        # If there are new values
         if values:
             for v in values:
                 if v['value'] > statistics_history[resource]['max']:
@@ -104,7 +104,7 @@ def virtualmachine_cost(host, virtualmachines, monitorserver,
     else:
         values = monitorserver.get_history(host=host, itemkey=item, till=cs.NOW,
                                            since=cost_history['timestamp'])
-    # If there is new values
+    # If there are new values
     if values:
         # Calculate the boot wastage
         if cs.MODE == 'monitoring':
@@ -193,7 +193,7 @@ def virtualmachine_wastage_heuristic1(host, virtualmachines, monitorserver,
         values = monitorserver.get_history(host=host, itemkey=item, till=cs.NOW,
                                        since=item_history['timestamp'])
 
-    # If there is new values
+    # If there are new values
     if values:
         # Calculate the wastage of each sample of value
         item_wastage_calculated = 0.0
@@ -263,7 +263,7 @@ def virtualmachine_wastage_heuristic2(host, virtualmachines, monitorserver,
                                            itemkey=item, till=cs.NOW,
                                            since=item_history['timestamp'])
 
-        # If there is new values
+        # If there are new values
         if values:
             # Calculate the wastage of each sample of value
             item_wastage_calculated = 0.0
@@ -333,7 +333,7 @@ def virtualmachine_wastage_heuristic3(host, virtualmachines, monitorserver,
                                            itemkey=item, till=cs.NOW,
                                            since=item_history['timestamp'])
 
-        # If there is new values
+        # If there are new values
         if values:
             # Calculate the wastage of each sample of value
             item_wastage_calculated = 0.0
@@ -374,6 +374,37 @@ def virtualmachine_wastage_heuristic3(host, virtualmachines, monitorserver,
                 monitorserver.send_item(host['id'], 'wastage',
                                         host_heuristic_wastage_calculated)
 
+# Get the wastage of a specific resource
+def virtualmachine_wastage_resource(host, virtualmachines, monitorserver, 
+                                    item, timelapse=None):
+    # Convert the sample time to hour (which is the unit for prices)
+    item_delay = host['items'][item]['delay']
+    value_delay = monitorserver.convert_to_hour(item_delay)
+    # Get the values of the item since the last value requested till now
+    if timelapse:
+        values = monitorserver.get_history(host=host, itemkey=item, 
+                                        till=timelapse[1], since=timelapse[0])
+    else:
+        values = monitorserver.get_history(host=host, itemkey=item, till=cs.NOW,
+                                            since=0)
+    item_values = {'wastage': [], 'utilization': []}
+    # If there are new values
+    if values:
+        # Calculate the wastage of each sample of value
+        item_wastage_calculated = 0.0
+        for v in values:
+            # Find the price of the sample based on price history
+            value_price = virtualmachines.find_price(host['id'],
+                                                     v['timestamp'])
+            # Calculate the wastage
+            # In this heuristic, takes % out of each sample and multiply
+            # with the price of the sample time (in hours)
+            wastage = v['value'] / 100.0 * value_price * value_delay
+            # This variable stores the wastage calculated in this execution
+            item_wastage_calculated += wastage
+            item_values['wastage'].append(item_wastage_calculated)
+            item_values['utilization'].append(100-v['value'])
+    return item_values
 
 # This calculates the volume total cost
 def volume_cost(host, volumes, monitorserver):
@@ -439,7 +470,7 @@ def volume_wastage_heuristic1(host, volumes, monitorserver):
 
     last_timestamp = item_history['timestamp']
     last_value = item_history['lastvalue']
-    # If there is new values
+    # If there are new values
     item_wastage_calculated = 0.0
     time_lapse_wastage = 0.0
     if values:

@@ -1,6 +1,6 @@
 import os
 import zapi as z
-from sendemail import user_registered
+from sendemail import usernotfound_email
 import getpass
 import MySQLdb
 
@@ -91,7 +91,7 @@ try:
                                  },
                          operations=[
                                 {'opmessage_usr': [{'userid':
-                                                    z.getUserID(user_name)}],
+                                                    z.get_userID(user_name)}],
                                     'operationtype': '0',
                                     'esc_period': '0',
                                     'evaltype': '0',
@@ -155,7 +155,7 @@ try:
                                  },
                          operations=[
                                 {'opmessage_usr': [{'userid':
-                                                    z.getUserID(user_name)}],
+                                                    z.get_userID(user_name)}],
                                     'operationtype': '0',
                                     'esc_period': '0',
                                     'evaltype': '0',
@@ -221,7 +221,7 @@ try:
                                  },
                          operations=[
                                 {'opmessage_usr': [{'userid':
-                                                    z.getUserID(user_name)}],
+                                                    z.get_userID(user_name)}],
                                     'operationtype': '0',
                                     'esc_period': '0',
                                     'evaltype': '0',
@@ -258,4 +258,4 @@ cursor.execute("INSERT INTO User_Wastage(UserName,Quota) VALUES(\""
 con.commit()
 
 
-user_registered(user_email, user_name)
+usernotfound_email(user_email, user_name)
