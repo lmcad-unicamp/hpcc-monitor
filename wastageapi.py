@@ -592,7 +592,7 @@ class HistoryWastage:
         for v in values:
             new_timestamps.append(int(v['timestamp']))
             new_values.append(v['value'])
-            self.set_last_time_bucket(int(v['timestamp']))
+            self.set_last_time_bucket(host, int(v['timestamp']))
         self.history_wastage[host]['finalities']['timestamps'].extend(
                                                                 new_timestamps)
         self.history_wastage[host]['finalities']['values'].extend(new_values)
@@ -661,7 +661,7 @@ class HistoryWastage:
         for v in values:
             new_timestamps.append(int(v['timestamp']))
             new_values.append(v['value'])
-            self.set_last_time_bucket(int(v['timestamp']))
+            self.set_last_time_bucket(host, int(v['timestamp']))
         self.history_wastage[host]['demands']['timestamps'].extend(
                                                                 new_timestamps)
         self.history_wastage[host]['demands']['values'].extend(new_values)
