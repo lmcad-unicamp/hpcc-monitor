@@ -70,3 +70,36 @@ def quotaexceeded_email(emails, quota, wastage):
     if type(emails) is list:
         emails = ", ".join(emails)
     send_email(emails, subject, message)
+
+def notificationaction_email(emails, instance, bucket, wastage, amount):
+    message = """Your VM %s is wasting too much in this state %s\n
+    This VM has wasted %.2f USD already\n
+    This is the amount of time you recieved an notification in this state for this VM: %d.
+    %s""" % (instance, bucket, round(wastage, 2), amount, WEBSITE)
+    subject = "URGENT: You are wasting too much!"
+    if type(emails) is list:
+        emails = ", ".join(emails)
+    send_email(emails, subject, message)
+
+
+def recommendationaction_email(emails, instance, bucket, wastage, amount, recommendation):
+    message = """Your VM %s is wasting too much in this state %s\n
+    This VM has wasted %.2f USD already\n
+    This is the amount of time you recieved an notification in this state for this VM: %d.
+    %s""" % (instance, bucket, round(wastage, 2), amount, WEBSITE)
+    message += recommendation
+    subject = "URGENT: You are wasting too much!"
+    if type(emails) is list:
+        emails = ", ".join(emails)
+    send_email(emails, subject, message)
+
+def interventionaction_email(emails, instance, bucket, wastage, amount):
+    message = """Your VM %s is wasting too much in this state %s\n
+    This VM has wasted %.2f USD already\n
+    This VM has been stopped.
+    This is the amount of time you recieved an notification in this state for this VM: %d.
+    %s""" % (instance, bucket, round(wastage, 2), amount, WEBSITE)
+    subject = "URGENT: We stopped your instance! You are wasting too much!"
+    if type(emails) is list:
+        emails = ", ".join(emails)
+    send_email(emails, subject, message)

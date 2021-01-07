@@ -28,7 +28,7 @@ class HistoryWastage:
         if self.mode == 'monitoring':
             self.HISTORY_FILE = HISTORY_FILE
         elif self.mode == 'testing':
-            self.HISTORY_FILE = HISTORY_FILE+'.test'
+            self.HISTORY_FILE = HISTORY_FILE+'.test.json'
         elif self.mode == 'experimenting':
             self.HISTORY_FILE = ''
 
@@ -67,7 +67,7 @@ class HistoryWastage:
             # pprint(self.users)
         if self.mode == 'experimenting':
             pprint("____________________________________________")
-            pprint(self.history_wastage)
+            # pprint(self.history_wastage)
         # Update file
         if self.mode != 'experimenting':
             (open(self.HISTORY_FILE, 'w+')).write(json.dumps(self.history_wastage))
@@ -121,8 +121,19 @@ class HistoryWastage:
     # Add new host to history
     def add_host(self, host):
         self.history_wastage[host] = {}
-        self.history_wastage[host]['boot'] = {}
+        self.history_wastage[host]['last_time'] = 0
+        self.history_wastage[host]['last_time_bucket'] = 0
+        self.history_wastage[host]['boot'] = 0
         self.history_wastage[host]['cost'] = {}
+        self.history_wastage[host]['buckets'] = {}
+        self.history_wastage[host]['buckets']['last_bucket'] = ''
+        self.history_wastage[host]['buckets']['timestamp'] = 0
+        self.history_wastage[host]['finalities'] = {}
+        self.history_wastage[host]['finalities']['timestamps'] = []
+        self.history_wastage[host]['finalities']['values'] = []
+        self.history_wastage[host]['demands'] = {}
+        self.history_wastage[host]['demands']['timestamps'] = []
+        self.history_wastage[host]['demands']['values'] = []
         self.history_wastage[host]['statistics'] = {}
         self.history_wastage[host]['prices'] = {}
         self.history_wastage[host]['prices']['timestamps'] = []
@@ -135,6 +146,21 @@ class HistoryWastage:
     # Update to the a new version
     def update_hosts(self):
         for host in self.history_wastage:
+            if 'buckets' not in self.history_wastage[host]:
+                self.history_wastage[host]['buckets'] = {}
+                self.history_wastage[host]['buckets']['last_bucket'] = ''
+                self.history_wastage[host]['buckets']['timestamp'] = 0
+
+            if 'finalities' not in self.history_wastage[host]:
+                self.history_wastage[host]['finalities'] = {}
+                self.history_wastage[host]['finalities']['timestamps'] = []
+                self.history_wastage[host]['finalities']['values'] = []
+
+            if 'demands' not in self.history_wastage[host]:
+                self.history_wastage[host]['demands'] = {}
+                self.history_wastage[host]['demands']['timestamps'] = []
+                self.history_wastage[host]['demands']['values'] = []
+                
             if 'prices' not in self.history_wastage[host]:
                 self.history_wastage[host]['prices'] = {}
                 self.history_wastage[host]['prices']['timestamps'] = []
@@ -149,7 +175,7 @@ class HistoryWastage:
                 self.history_wastage[host]['statistics'] = {}
 
             if 'boot' not in self.history_wastage[host]:
-                self.history_wastage[host]['boot'] = {}
+                self.history_wastage[host]['boot'] = 0
 
             if 'cost' not in self.history_wastage[host]:
                 self.history_wastage[host]['cost'] = {}
@@ -163,21 +189,21 @@ class HistoryWastage:
         return self.history_wastage[host]
 
     # Set wastage of a host
-    def set_host_wastage(self, host, heuristic, wastage, timelapse=None):
+    def set_host_wastage(self, host, equation, wastage, timelapse=None):
         if timelapse:
             timelapse = self.timelapse_str(timelapse)
             self.history_wastage[host][timelapse][
-                                                heuristic]['wastage'] = wastage
+                                                equation]['wastage'] = wastage
         else:
-            self.history_wastage[host][heuristic]['wastage'] = wastage
+            self.history_wastage[host][equation]['wastage'] = wastage
 
     # Get wastage of a host
-    def get_host_wastage(self, host, heuristic, timelapse=None):
+    def get_host_wastage(self, host, equation, timelapse=None):
         if timelapse:
             timelapse = self.timelapse_str(timelapse)
-            return self.history_wastage[host][timelapse][heuristic]['wastage']
+            return self.history_wastage[host][timelapse][equation]['wastage']
         else:
-            return self.history_wastage[host][heuristic]['wastage']
+            return self.history_wastage[host][equation]['wastage']
 
     # Set cost of a host
     def set_host_cost(self, host, cost, timelapse=None):
@@ -194,6 +220,23 @@ class HistoryWastage:
             return self.history_wastage[host][timelapse]['cost']
         else:
             return self.history_wastage[host]['cost']
+
+    # Set timestamp of the last time calculated
+    def set_last_time(self, host, timestamp):
+        self.history_wastage[host]['last_time'] = timestamp
+
+    # Get timestamp of the last time calculated
+    def get_last_time(self, host):
+        return self.history_wastage[host]['last_time']
+
+    # Set timestamp of the last time bucket
+    def set_last_time_bucket(self, host, timestamp):
+        if timestamp >= self.history_wastage[host]['last_time_bucket']:
+            self.history_wastage[host]['last_time_bucket'] = timestamp
+
+    # Get timestamp of the last time bucket
+    def get_last_time_bucket(self, host):
+        return self.history_wastage[host]['last_time_bucket']
 
     # Set boot wastage of a host
     def set_host_boot(self, host, boot, timelapse=None):
@@ -231,33 +274,33 @@ class HistoryWastage:
     def get_host_boottimestamp(self, host):
         return self.history_wastage[host]['boottimestamp']
 
-    # Set an attribute on heuristic
-    def set_heuristic_attribute(self, host, heuristic, attribute, value):
-        self.history_wastage[host][heuristic][attribute] = value
+    # Set an attribute on equation
+    def set_equation_attribute(self, host, equation, attribute, value):
+        self.history_wastage[host][equation][attribute] = value
 
-    # Set a heuristic for host if it exists:
-    def set_heuristic(self, host, heuristic, timelapse=None):
+    # Set a equation for host if it exists:
+    def set_equation(self, host, equation, timelapse=None):
         if timelapse:
             timelapse = self.timelapse_str(timelapse)
-            if heuristic not in self.history_wastage[host][timelapse]:
-                self.history_wastage[host][timelapse][heuristic] = {}
+            if equation not in self.history_wastage[host][timelapse]:
+                self.history_wastage[host][timelapse][equation] = {}
                 self.history_wastage[host][timelapse][
-                                                    heuristic]['wastage'] = 0.0
+                                                    equation]['wastage'] = 0.0
         else:
-            if heuristic not in self.history_wastage[host]:
-                self.history_wastage[host][heuristic] = {}
-                self.history_wastage[host][heuristic]['wastage'] = 0.0
+            if equation not in self.history_wastage[host]:
+                self.history_wastage[host][equation] = {}
+                self.history_wastage[host][equation]['wastage'] = 0.0
 
-    # Get heuristics attributes
-    def get_heuristic(self, host, heuristic, timelapse=None):
+    # Get equation's attributes
+    def get_equation(self, host, equation, timelapse=None):
         if timelapse:
             timelapse = self.timelapse_str(timelapse)
-            if heuristic in self.history_wastage[host][timelapse]:
-                return self.history_wastage[host][timelapse][heuristic]
+            if equation in self.history_wastage[host][timelapse]:
+                return self.history_wastage[host][timelapse][equation]
             return {}
         else:
-            if heuristic in self.history_wastage[host]:
-                return self.history_wastage[host][heuristic]
+            if equation in self.history_wastage[host]:
+                return self.history_wastage[host][equation]
             return {}
 
     # Get the last timestamp of price of host
@@ -272,6 +315,7 @@ class HistoryWastage:
         if len(self.history_wastage[host]['prices']['values']) > 0:
             return True
         return False
+
     # Get price of the host in a specific timestamp
     def find_price(self, host, timestamp):
         prices = self.history_wastage[host]['prices']
@@ -364,26 +408,26 @@ class HistoryWastage:
         self.history_wastage[host]['types']['values'].extend(new_values)
 
     # Get history of an item
-    def get_item_history(self, host, HEURISTIC, item, timelapse=None):
+    def get_item_history(self, host, item, timelapse=None):
         if timelapse:
             timelapse = self.timelapse_str(timelapse)
-            if item in self.history_wastage[host][timelapse][HEURISTIC]:
-                return self.history_wastage[host][timelapse][HEURISTIC][item]
+            if item in self.history_wastage[host][timelapse]:
+                return self.history_wastage[host][timelapse][item]
             else:
                 return {}
         else:
-            if item in self.history_wastage[host][HEURISTIC]:
-                return self.history_wastage[host][HEURISTIC][item]
+            if item in self.history_wastage[host]:
+                return self.history_wastage[host][item]
             else:
                 return {}
 
     # Set history to an item
-    def set_item_history(self, host, HEURISTIC, item, history, timelapse=None):
+    def set_item_history(self, host, item, history, timelapse=None):
         if timelapse:
             timelapse = self.timelapse_str(timelapse)
-            self.history_wastage[host][timelapse][HEURISTIC][item] = history
+            self.history_wastage[host][timelapse][item] = history
         else:
-            self.history_wastage[host][HEURISTIC][item] = history
+            self.history_wastage[host][item] = history
 
     # Set a timelapse for host if it exists:
     def add_timelapse(self, host, timelapse):
@@ -392,6 +436,7 @@ class HistoryWastage:
             self.history_wastage[host][timelapsestr] = {}
             self.history_wastage[host][timelapsestr]['cost'] = {}
             self.history_wastage[host][timelapsestr]['boot'] = {}
+            self.history_wastage[host][timelapsestr]['bucket'] = {}
             self.history_wastage[host][timelapsestr]['time'] = (timelapse[1] -
                                                                 timelapse[0])
             self.history_wastage[host][timelapsestr]['statistics'] = {}
@@ -399,3 +444,224 @@ class HistoryWastage:
                                     host, timelapse[0], timelapse[1])
             self.history_wastage[host][timelapsestr]['price'] = self.find_prices(
                                     host, timelapse[0], timelapse[1])
+
+    # Set a bucket for host if it exists:
+    def set_bucket(self, host, bucket, timelapse=None):
+        if timelapse:
+            timelapse = self.timelapse_str(timelapse)
+            if bucket not in self.history_wastage[host][timelapse]['buckets']:
+                self.history_wastage[host][timelapse]['buckets'][bucket] = {}
+                self.history_wastage[host][timelapse]['buckets'][bucket][
+                                                    'compulsory'] = 0.0
+                self.history_wastage[host][timelapse]['buckets'][bucket][
+                                                    'arbitrary'] = 0.0
+                self.history_wastage[host][timelapse]['buckets'][bucket][
+                                                    'reset'] = 0.0
+                self.history_wastage[host][timelapse]['buckets'][bucket]['action'] = {}
+                self.history_wastage[host][timelapse]['buckets'][bucket]['action'][
+                                                    'timestamp'] = 0.0
+                self.history_wastage[host][timelapse]['buckets'][bucket]['action'][
+                                                    'amount'] = 0.0
+        else:
+            if bucket not in self.history_wastage[host]['buckets']:
+                self.history_wastage[host]['buckets'][bucket] = {}
+                self.history_wastage[host]['buckets'][bucket]['compulsory'] = 0.0
+                self.history_wastage[host]['buckets'][bucket]['arbitrary'] = 0.0
+                self.history_wastage[host]['buckets'][bucket]['reset'] = 0.0
+                self.history_wastage[host]['buckets'][bucket]['action'] = {}
+                self.history_wastage[host]['buckets'][bucket]['action']['timestamp'] = 0
+                self.history_wastage[host]['buckets'][bucket]['action']['amount'] = 0
+                self.history_wastage[host]['buckets'][bucket]['reset_action'] = {}
+                self.history_wastage[host]['buckets'][bucket]['reset_action']['timestamp'] = 0
+                self.history_wastage[host]['buckets'][bucket]['reset_action']['amount'] = 0
+
+    # Get bucket's attributes
+    def get_bucket(self, host, bucket, timelapse=None):
+        if timelapse:
+            timelapse = self.timelapse_str(timelapse)
+            if bucket in self.history_wastage[host][timelapse]['buckets']:
+                return self.history_wastage[host][timelapse]['buckets'][bucket]
+            return {}
+        else:
+            if bucket in self.history_wastage[host]['buckets']:
+                return self.history_wastage[host]['buckets'][bucket]
+            return {}
+
+    # Get buckets history
+    def get_buckets(self, host, timelapse=None):
+        if timelapse:
+            timelapse = self.timelapse_str(timelapse)
+            return self.history_wastage[host][timelapse]['buckets']
+        else:
+            return self.history_wastage[host]['buckets']
+
+    # Get the last timestamp of bucket of host
+    def get_bucket_timestamp(self, host):
+        if self.history_wastage[host]['buckets']['timestamp']:
+            return self.history_wastage[host]['buckets']['timestamp']
+        else:
+            return 0
+    
+    # Get the last value of bucket of host
+    def get_bucket_value(self, host):
+        if self.history_wastage[host]['buckets']['last_bucket']:
+            return self.history_wastage[host]['buckets']['last_bucket']
+        else:
+            return 'none'
+
+    # Update the last value of bucket of host
+    def update_bucket_infos(self, host, last_bucket, timestamp):
+        if timestamp > self.history_wastage[host]['buckets']['timestamp']:
+            self.history_wastage[host]['buckets']['timestamp'] = timestamp
+            self.history_wastage[host]['buckets']['last_bucket'] = last_bucket
+    
+    # Set an wastage on bucket
+    def set_bucket_wastage(self, host, bucket, wastage, value):
+        self.history_wastage[host]['buckets'][bucket][wastage] = value
+
+
+    # Get the action infos of a bucket
+    def get_bucket_action(self, host, bucket, action='action'):
+        return self.history_wastage[host]['buckets'][bucket][action]
+
+    # Set the action infos of a bucket
+    def set_bucket_action(self, host, bucket, action_infos, action='action'):
+        self.history_wastage[host]['buckets'][bucket][action] = action_infos
+
+
+    # Get finality history
+    def get_finality_history(self, host, timelapse=None):
+        if timelapse:
+            timelapse = self.timelapse_str(timelapse)
+            return self.history_wastage[host][timelapse]['finalities']
+        else:
+            return self.history_wastage[host]['finalities']
+
+    # Get the last timestamp of finality of host
+    def get_finality_timestamp(self, host):
+        if self.history_wastage[host]['finalities']['timestamps']:
+            return self.history_wastage[host]['finalities']['timestamps'][-1]
+        else:
+            return 0
+    
+    # Get the last value of finality of host
+    def get_finality_value(self, host):
+        if self.history_wastage[host]['finalities']['values']:
+            return self.history_wastage[host]['finalities']['values'][-1]
+        else:
+            return 'none'
+
+    # Check if ther is any finality history on host
+    def has_finality(self, host):
+        if len(self.history_wastage[host]['finalities']['values']) > 0:
+            return True
+        return False
+
+    # Get finality of the host in a specific timestamp
+    def find_finality(self, host, timestamp):
+        finalities = self.history_wastage[host]['finalities']
+        for i in reversed(range(len(finalities['timestamps']))):
+            if finalities['timestamps'][i] <= timestamp:
+                return finalities['values'][i]
+        return finalities['values'][0]
+
+    # Get finalities between two timestamps
+    def find_finalities(self, host, begin, end):
+        finalities = self.history_wastage[host]['finalities']
+        period_finalities = []
+        for i in reversed(range(len(finalities['timestamps']))):
+            if finalities['timestamps'][i] <= end:
+                if finalities['timestamps'][i] > begin:
+                    period_finalities.append([finalities['values'][i],
+                                          finalities['timestamps'][i]])
+                else:
+                    period_finalities.append([finalities['values'][i],
+                                          finalities['timestamps'][i]])
+                    break
+        if len(period_finalities) == 0:
+            period_finalities = [[finalities['values'][0], begin]]
+        else:
+            period_finalities.reverse()
+            period_finalities[0][1] = begin
+        return period_finalities
+
+    # Set the history of finality of host
+    def set_finality_history(self, host, values):
+        new_timestamps = []
+        new_values = []
+        for v in values:
+            new_timestamps.append(int(v['timestamp']))
+            new_values.append(v['value'])
+            self.set_last_time_bucket(int(v['timestamp']))
+        self.history_wastage[host]['finalities']['timestamps'].extend(
+                                                                new_timestamps)
+        self.history_wastage[host]['finalities']['values'].extend(new_values)
+
+
+    # Get demand history
+    def get_demand_history(self, host, timelapse=None):
+        if timelapse:
+            timelapse = self.timelapse_str(timelapse)
+            return self.history_wastage[host][timelapse]['demands']
+        else:
+            return self.history_wastage[host]['demands']
+
+    # Get the last timestamp of demand of host
+    def get_demand_timestamp(self, host):
+        if self.history_wastage[host]['demands']['timestamps']:
+            return self.history_wastage[host]['demands']['timestamps'][-1]
+        else:
+            return 0
+    
+    # Get the last value of demand of host
+    def get_demand_value(self, host):
+        if self.history_wastage[host]['demands']['values']:
+            return self.history_wastage[host]['demands']['values'][-1]
+        else:
+            return 'none'
+
+    # Check if ther is any demand history on host
+    def has_demand(self, host):
+        if len(self.history_wastage[host]['demands']['values']) > 0:
+            return True
+        return False
+
+    # Get demand of the host in a specific timestamp
+    def find_demand(self, host, timestamp):
+        demands = self.history_wastage[host]['demands']
+        for i in reversed(range(len(demands['timestamps']))):
+            if demands['timestamps'][i] <= timestamp:
+                return demands['values'][i]
+        return demands['values'][0]
+
+    # Get demands between two timestamps
+    def find_demands(self, host, begin, end):
+        demands = self.history_wastage[host]['demands']
+        period_demands = []
+        for i in reversed(range(len(demands['timestamps']))):
+            if demands['timestamps'][i] <= end:
+                if demands['timestamps'][i] > begin:
+                    period_demands.append([demands['values'][i],
+                                          demands['timestamps'][i]])
+                else:
+                    period_demands.append([demands['values'][i],
+                                          demands['timestamps'][i]])
+                    break
+        if len(period_demands) == 0:
+            period_demands = [[demands['values'][0], begin]]
+        else:
+            period_demands.reverse()
+            period_demands[0][1] = begin
+        return period_demands
+
+    # Set the history of demand of host
+    def set_demand_history(self, host, values):
+        new_timestamps = []
+        new_values = []
+        for v in values:
+            new_timestamps.append(int(v['timestamp']))
+            new_values.append(v['value'])
+            self.set_last_time_bucket(int(v['timestamp']))
+        self.history_wastage[host]['demands']['timestamps'].extend(
+                                                                new_timestamps)
+        self.history_wastage[host]['demands']['values'].extend(new_values)

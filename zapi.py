@@ -102,7 +102,6 @@ def send_item(host, item, value, file=False, timestamp=False):
         logger.error("[ZAPI] [send_item] " + str(e))
 
 
-
 # Get the id of a host
 def get_hostID(hostname):
     host = zapi.host.get(output=['hostid'], filter={'host': hostname})
@@ -129,6 +128,10 @@ def get_userID(username):
     else:
         raise NotFoudException("User does not exist: " + username)
 
+# Get the tags of a host
+def get_tags(hostid):
+    host = zapi.host.get(hostids=[hostid], selectTags=['tag', 'value'])
+    return host[0]['tags']
 
 # Get the id of a template
 def get_templateID(templatename):
@@ -295,6 +298,7 @@ def register_host(host):
     else:
         logger.info("[ZAPI] [register_host] Host registered: "
                     + host['id'])
+
 
 
 # Get hosts from Zabbix Server
@@ -697,6 +701,13 @@ def host_update_restartlaunchtime(host):
                          + "of the host " + host['id'] + ": " + str(e))
         else:
             logger.info(loggerMessage)
+
+# Get the most recent launch:
+def host_get_launch(host):
+    launch_time = host['launchtime']
+    if 'restartlaunchtime' in host and host['restartlaunchtime']:
+        launch_time = host['restartlaunchtime']
+    return launch_time
 
 # Update the price of a host
 def host_update_price(host):

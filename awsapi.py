@@ -50,7 +50,7 @@ ebs_types = {'standard': 'Magnetic',
 
 families = {'generalpurpose': ['m4', 'm5nd', 'm5n', 'm5ad', 'm5a', 'm5d',
                                'm5', 'm6g', 't2', 't3a', 't3', 'a1'],
-            'compute': ['c4', 'c5n', 'c5d', 'c5'],
+            'compute': ['c4', 'c5n', 'c5d', 'c5', 'c5a'],
             'memory': ['z1d', 'u-', 'x1', 'r4', 'r5dn',
                        'r5n', 'r5ad', 'r5a', 'r5d', 'r5'],
             'accelerated': ['g3', 'g3s', 'g4dn', 'inf1', 'p2', 'p3dn', 'p3'],
@@ -777,4 +777,280 @@ def get_instances(pricing=False, ignore={}, mode='parallel'):
     elif mode == 'sequential':
         instances = get_instances_sequential(pricing=pricing, ignore=ignore)
 
+    return instances# Get the price of a spot instance
+def get_spotinstance_pricing(region, instance_info=None, instance_id=None):
+    try:
+        client = boto.client('ec2', region_name=region,
+                             aws_access_key_id=ACCESS_ID,
+                             aws_secret_access_key=SECRET_KEY)
+    except botocore.exceptions.ClientError:
+        return
+
+    # If instance info is used
+    if instance_info:
+        instance_id = instance_info['InstanceId']
+    # If a instance id is used, request client.describe_instance for infos
+    elif instance_id:
+        try:
+            instance_info = client.describe_instances(
+                                                    InstanceIds=[instance_id])
+        except botocore.exceptions.ClientError as e:
+            logger.error("[AWS] [get_spotinstance_pricing] Instance could not "
+                         + "found " + instance_id + ": " + str(e))
+            return
+        else:
+            instance_info = instance_info['Reservations'][0]['Instances'][0]
+    # Else it is a error
+    else:
+        logger.error("[AWS] [get_spotinstance_pricing] A instance_info or "
+                     + "instance_id is needed")
+        return
+
+    # Get instance type and region
+    instance_type = instance_info['InstanceType']
+    availability_zone = instance_info['Placement']['AvailabilityZone']
+
+    # Get instance image infos
+    image_id = instance_info['ImageId']
+    image = client.describe_images(ImageIds=[image_id])
+
+    if not image['Images']:
+        logger.error("[AWS] [get_spotinstance_pricing] Image " + str(image_id)
+                     + " does not exist, using default information."
+                     + " Instance " + instance_id)
+        operating_system = 'Linux'
+    else:
+        # Find operating system based on description of the image
+        operating_system = find_operatingsystem(image['Images'][0]
+                                                ['PlatformDetails'])
+
+
+# Stop an instance
+def stop_instance(instance_id):
+    client = boto.client('ec2', aws_access_key_id=ACCESS_ID,
+                          aws_secret_access_key=SECRET_KEY)
+    client.stop_instance([instance_id])
+
+# Get all instance types in parallel
+def get_instance_types_parallel(region):
+    client = boto.client('ec2', region_name=region,
+                        aws_access_key_id=ACCESS_ID,
+                        aws_secret_access_key=SECRET_KEY)
+    pricesclient = boto.client('pricing',
+                        region_name=REGION_AUTHORIZED_TO_GET_PRICING,
+                        aws_access_key_id=ACCESS_ID,
+                        aws_secret_access_key=SECRET_KEY)
+    instances = {}
+    response = {}
+    while True:
+        try:
+            if 'NextToken' in response:
+                response = client.describe_instance_types(NextToken = response['NextToken'])
+            else:
+                response = client.describe_instance_types()
+        
+        except botocore.exceptions.ClientError:
+            return {}
+        else:
+            for i in response['InstanceTypes']:
+                if 'FpgaInfo' in i: continue
+                instance_type = i['InstanceType']
+                vcpu = int(i['VCpuInfo']['DefaultVCpus'])
+                memory = int(i['MemoryInfo']['SizeInMiB']*0.000976563)
+                instances[instance_type] = {}
+                instances[instance_type]['resources'] = {'vcpu': vcpu, 'memory': memory}
+                if 'GpuInfo' in i:
+                    gpu = int(i['GpuInfo']['Gpus'][0]['Count'])
+                    instances[instance_type]['resources']['gpu'] = gpu
+
+
+                prices = pricesclient.get_products(ServiceCode="AmazonEC2",
+                                        Filters=[{'Type': "TERM_MATCH",
+                                                'Field': "servicecode",
+                                                'Value': "AmazonEC2"},
+                                                {'Type': "TERM_MATCH",
+                                                'Field': "instanceType",
+                                                'Value': instance_type},
+                                                {'Type': "TERM_MATCH",
+                                                'Field': "location",
+                                                'Value': regions[region]}])
+
+                for p in prices['PriceList']:
+                    operating_system = eval(p)['product']['attributes']['operatingSystem']
+                    license_model = eval(p)['product']['attributes']['licenseModel']
+                    preinstalled_sw = eval(p)['product']['attributes']['preInstalledSw']
+                    tenancy = eval(p)['product']['attributes']['tenancy']
+                    capacity_status = eval(p)['product']['attributes']['capacitystatus']
+                    price = (list(list(eval(p)["terms"]["OnDemand"].values())
+                                        [0]["priceDimensions"].values())
+                                    [0]["pricePerUnit"]["USD"])
+                    k = operating_system+'.'+license_model+'.'+preinstalled_sw+'.'+tenancy+'.'+capacity_status
+                    instances[instance_type][k] = {}
+                    instances[instance_type][k]['price'] = float(price)
+                    instances[instance_type][k]['pricereason'] = float(price)/vcpu
+
+            if 'NextToken' not in response:
+                break
+
+    return {region: instances}
+
+# Get all instance types in sequential
+def get_instance_types_sequential():
+    instances = {}
+    # For each region, we ask to the AWS API for instances
+    for region in regions:
+        instances[region] = {}
+        client = boto.client('ec2', region_name=region,
+                            aws_access_key_id=ACCESS_ID,
+                            aws_secret_access_key=SECRET_KEY)
+        pricesclient = boto.client('pricing',
+                            region_name=REGION_AUTHORIZED_TO_GET_PRICING,
+                            aws_access_key_id=ACCESS_ID,
+                            aws_secret_access_key=SECRET_KEY)
+        response = {}
+        while True:
+            try:
+                if 'NextToken' in response:
+                    response = client.describe_instance_types(NextToken = response['NextToken'])
+                else:
+                    response = client.describe_instance_types()
+            except botocore.exceptions.ClientError:
+                del instances[region]
+                break
+            else:
+                for i in response['InstanceTypes']:
+                    if 'FpgaInfo' in i: continue
+                    instance_type = i['InstanceType']
+                    vcpu = int(i['VCpuInfo']['DefaultVCpus'])
+                    memory = int(i['MemoryInfo']['SizeInMiB']*0.000976563)
+                    instances[region][instance_type] = {}
+                    instances[region][instance_type]['resources'] = {'vcpu': vcpu, 'memory': memory}
+                    if 'GpuInfo' in i:
+                        gpu = int(i['GpuInfo']['Gpus'][0]['Count'])
+                        instances[region][instance_type]['resources']['gpu'] = gpu
+
+                prices = pricesclient.get_products(ServiceCode="AmazonEC2",
+                                        Filters=[{'Type': "TERM_MATCH",
+                                                'Field': "servicecode",
+                                                'Value': "AmazonEC2"},
+                                                {'Type': "TERM_MATCH",
+                                                'Field': "instanceType",
+                                                'Value': instance_type},
+                                                {'Type': "TERM_MATCH",
+                                                'Field': "location",
+                                                'Value': regions[region]}])
+
+                for p in prices['PriceList']:
+                    operating_system = eval(p)['product']['attributes']['operatingSystem']
+                    license_model = eval(p)['product']['attributes']['licenseModel']
+                    preinstalled_sw = eval(p)['product']['attributes']['preInstalledSw']
+                    tenancy = eval(p)['product']['attributes']['tenancy']
+                    capacity_status = eval(p)['product']['attributes']['capacitystatus']
+                    price = (list(list(eval(p)["terms"]["OnDemand"].values())
+                                        [0]["priceDimensions"].values())
+                                    [0]["pricePerUnit"]["USD"])
+                    k = operating_system+'.'+license_model+'.'+preinstalled_sw+'.'+tenancy+'.'+capacity_status
+                    instances[region][instance_type][k] = {}
+                    instances[region][instance_type][k]['price'] = float(price)
+                    instances[region][instance_type][k]['pricereason'] = float(price)/vcpu
+
+                if 'NextToken' not in response:
+                    break
+
     return instances
+
+# Get instance types from AWS
+def get_instance_types(mode='parallel'):
+    if mode == 'parallel':
+        num_cores = multiprocessing.cpu_count()
+        results = Parallel(n_jobs=num_cores)(
+                           delayed(get_instance_types_parallel)(
+                                    [x for x in regions][i]
+                                    ) for i in range(len(regions)))
+        instances = {}
+        for result in results:
+            for r in result:
+                instances[r] = result[r]
+    elif mode == 'sequential':
+        instances = get_instance_types_sequential()
+
+    return instances
+
+# Get the infos of an instance
+def get_instance_infos(region,  instance_id):
+    try:
+        client = boto.client('ec2', region_name=region,
+                             aws_access_key_id=ACCESS_ID,
+                             aws_secret_access_key=SECRET_KEY)
+    except botocore.exceptions.ClientError:
+        return
+
+    try:
+        instance_info = client.describe_instances(InstanceIds=[instance_id])
+    except botocore.exceptions.ClientError as e:
+        logger.error("[AWS] [get_instance_pricing] Instance could not "
+                        + "found " + instance_id + ": " + str(e))
+        return
+    else:
+        instance_info = instance_info['Reservations'][0]['Instances'][0]
+
+
+    # Get instance type and region
+    instance_type = instance_info['InstanceType']
+
+    # Get tenancy, if it is default then we use Shared
+    tenancy = instance_info['Placement']['Tenancy']
+    if tenancy == "default":
+        tenancy = 'Shared'
+
+    # Get instance image infos
+    image_id = instance_info['ImageId']
+    image = client.describe_images(ImageIds=[image_id])
+
+    if not image['Images']:
+        logger.error("[AWS] [get_instance_pricing] Image " + str(image_id)
+                     + " does not exist, using default information."
+                     + " Instance " + instance_id)
+        operating_system = 'Linux'
+        preinstalled_sw = 'NA'
+        license_model = 'No License required'
+    else:
+        # Find operating system, licesen model and pre installed softwares
+        operating_system = find_operatingsystem(image['Images'][0]
+                                                ['PlatformDetails'])
+        license_model = find_licensemodel(image['Images'][0]
+                                               ['PlatformDetails'])
+        preinstalled_sw = find_preinstalledsoftware(image['Images'][0]
+                                                    ['PlatformDetails'])
+
+    # Since we are using the instance, the capacity status is Used
+    capacity_status = 'Used'
+
+    # If the type of the instance if one of these, there are some constants
+    for f in ['c1', 'c3', 'g2', 'i2', 'm1', 'm2', 'm3', 'r3']:
+        if instance_type.find(f) != -1:
+            license_model = 'NA'
+            operating_system = 'NA'
+            capacity_status = 'NA'
+
+    # If there is a capacity reservation that matches with the instance,
+    # Then the capacity reservation is used
+    if (instance_info['CapacityReservationSpecification']
+            ['CapacityReservationPreference'] == 'open'):
+        if ('CapacityReservationTarget' in
+                instance_info['CapacityReservationSpecification']):
+            # Get the id of capacity reservation and requires infos about
+            capacity_id = (instance_info['CapacityReservationSpecification']
+                           ['CapacityReservationTarget']
+                           ['capacity_reservation_id'])
+            capacity_reservation = client.describe_capacity_reservations(
+                                        CapacityReservationIds=[capacity_id])
+            # Since we are using the instance, the capacity status is Used
+            capacity_status = 'Used'
+            # The operating system and pre-installed sofware are defined
+            operating_system = find_operatingsystem(capacity_reservation
+                                                    ['InstancePlatform'])
+            preinstalled_sw = find_preinstalledsoftware(capacity_reservation
+                                                        ['InstancePlatform'])
+
+    return operating_system+'.'+license_model+'.'+preinstalled_sw+'.'+tenancy+'.'+capacity_status
