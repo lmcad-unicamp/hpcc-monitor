@@ -8,8 +8,8 @@ from datetime import datetime
 from pprint import pprint
 from sendemail import notificationaction_email, recommendationaction_email, interventionaction_email
 
-TIME_BETWEEN_ACTIONS = 1 #10*60
-AMOUNT_OF_ACTIONS_TAKEN = 5
+TIME_BETWEEN_ACTIONS = cs.ACTION_TIME_BETWEEN_ACTIONS
+AMOUNT_OF_ACTIONS_TAKEN = cs.ACTION_AMOUNT_OF_ACTIONS_TAKEN
 
 THRESHOLDS = {'execution': {'high': {'accumulative': {
                                         'thresholds': [3], 

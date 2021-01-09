@@ -40,7 +40,7 @@ logger = logging.getLogger(str(inspect.getouterframes(inspect.currentframe()
                                                       )[-1].filename))
 
 
-# This function calculates the compulsory and arbitrary wastage
+# This function calculates the compulsory and arbitrary wastage and cost
 def virtualmachine_calculates(host, virtualmachines, monitorserver,
                                 utilization, timestamp, value_delay, 
                                 bucket, selection):
@@ -53,13 +53,15 @@ def virtualmachine_calculates(host, virtualmachines, monitorserver,
     compulsory_wastage = bucket_history['compulsory']
     arbitrary_wastage = bucket_history['arbitrary']
     reset_wastage = bucket_history['reset']
-    pprint(bucket_history)
+
     if current_instance == selection:
         # Calculates compulsory wastage
         price = virtualmachines.find_price(host['id'], timestamp)
         compulsory_wastage += (100-utilization) / 100.0 * price * value_delay
+        total_cost = price * value_delay
         virtualmachines.set_bucket_wastage(host['id'], bucket, 
                                             'compulsory', compulsory_wastage)
+        virtualmachines.set_host_cost(host['id'], total_cost)
     else:
         # Calculates compulsory wastage using the selected intance price
         selected_price = cs.INSTANCES_PRICES[host['provider']][host['region']][selection][host['price_infos']]['price']
@@ -75,6 +77,7 @@ def virtualmachine_calculates(host, virtualmachines, monitorserver,
         virtualmachines.set_bucket_wastage(host['id'], bucket, 
                                             'arbitrary', arbitrary_wastage)
 
+        total_cost = current_price * value_delay
         # Calculates the reset wastage
         if bucket != virtualmachines.get_bucket_value(host['id']):
             virtualmachines.reset_bucket(host['id'], bucket)
@@ -82,9 +85,11 @@ def virtualmachine_calculates(host, virtualmachines, monitorserver,
         reset_wastage += current_wastage - current_compulsory_wastage
         virtualmachines.set_bucket_wastage(host['id'], bucket, 
                                             'reset', reset_wastage)
+        virtualmachines.set_host_cost(host['id'], total_cost)
 
     # Send to montior server
     if cs.MODE == 'monitoring':
+        monitorserver.send_item(host['id'], 'cost', total_cost)
         monitorserver.send_item(host['id'], 'wastage.'+bucket+'.compulsory', compulsory_wastage)
         monitorserver.send_item(host['id'], 'wastage.'+bucket+'.arbitrary', arbitrary_wastage)
         monitorserver.send_item(host['id'], 'wastage.'+bucket+'.reset', reset_wastage)
@@ -215,11 +220,11 @@ def virtualmachine_cost(host, virtualmachines, monitorserver,
         else:
             boot_value = 0
             if timelapse:
-                boot_values = monitorserver.get_history(host=host, itemkey='boot', 
+                boot_values = monitorserver.get_history(host=host, itemkey='wastage.boot', 
                                 till=timelapse[1], since=timelapse[0])
             else:
                 boot_values = monitorserver.get_history(host=host, 
-                                    itemkey='boot', till=cs.NOW, 
+                                    itemkey='wastage.boot', till=cs.NOW, 
                                     since=boot_history['timestamp'])
             for v in boot_values:
                 boot_value += v['value']

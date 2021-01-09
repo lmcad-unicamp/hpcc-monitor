@@ -9,11 +9,7 @@ import awsapi as aws
 import json
 import math
 
-RESOURCES = {
-    'vcpu': 'system.cpu.util[all,user,avg1]',
-    'gpu': 'gpu.utilization',
-    'memory': 'vm.memory.size[pused]'
-}
+RESOURCES = cs.SELECTIONS_RESOURCES
 
 home = os.path.dirname(os.path.realpath(__file__))
 logger = logging.getLogger(str(inspect.getouterframes(inspect.currentframe()
@@ -51,7 +47,7 @@ def get_search_space(host, instances, vcpu_min, vcpu_max):
     for i in instances:
         if instances_resources[i]['vcpu'] not in vcpu_sizes:
             vcpu_sizes.append(instances_resources[i]['vcpu'])
-    print(vcpu_sizes)
+
     # For each vCPU amount available
     search_list = []
     for vcpu in sorted(vcpu_sizes):
@@ -77,10 +73,10 @@ def selection_base(host, virtualmachines, filtered_instances, current_instance,
                     timestamp, vcpu_min, vcpu_max, compare):
     instances_resources = cs.INSTANCES_RESOURCES[host['provider']][host['region']]
     instances_prices = cs.INSTANCES_PRICES[host['provider']][host['region']]
-    print(vcpu_min, vcpu_max)
+
     # Get the search space
     search_space = get_search_space(host, filtered_instances, vcpu_min, vcpu_max)
-    print(search_space)
+
     # Find the cheapest one
     for vcpu in sorted(search_space, reverse=True):
         # Get the instances with the current vCPU amount
@@ -88,7 +84,6 @@ def selection_base(host, virtualmachines, filtered_instances, current_instance,
         for i in filtered_instances:
             if vcpu == instances_resources[i]['vcpu']:
                 candidates.append(i)
-        print(candidates)
         
         # Get the cheapest instance in this set
         cheapest_type = ''
@@ -190,14 +185,15 @@ def virtualmachine_selection(host, virtualmachines, utilization,
     resources_amounts = {}
     for r in instances_resources[current_instance]:
         # Get the utilization in the specific timestamp
-        item = RESOURCES[r]
+        item = RESOURCES[r]['metric']
         values = monitorserver.get_history(host=host, itemkey=item, 
                                         since=timestamp-1, limit=1)
         if values:
-            resources_utilizations[r] = values[0]['value'] # Calculate the amount of the resource that is being used
-            if r in ['vcpu', 'gpu', 'memory']:
+            resources_utilizations[r] = values[0]['value'] 
+            # Calculate the amount of the resource that is being used
+            if RESOURCES[r]['unit'] == 'percentage':
                 resources_amounts[r] = math.ceil(resources_utilizations[r]*instances_resources[current_instance][r]/100.0)
-
+            
     if 'vcpu' not in resources_utilizations:
         logger.error("[SELECTION] The instance " + host['id'] + " does not have"
                     + " vCPU utilization")

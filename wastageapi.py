@@ -123,7 +123,7 @@ class HistoryWastage:
         self.history_wastage[host] = {}
         self.history_wastage[host]['last_time'] = 0
         self.history_wastage[host]['boot'] = 0
-        self.history_wastage[host]['cost'] = {}
+        self.history_wastage[host]['cost'] = 0
         self.history_wastage[host]['buckets'] = {}
         self.history_wastage[host]['buckets']['last_bucket'] = ''
         self.history_wastage[host]['buckets']['timestamp'] = 0
@@ -593,13 +593,13 @@ class HistoryWastage:
         return period_finalities
 
     # Set the history of finality of host
-    def set_finality_history(self, host, values):
+    def set_finality_history(self, host, values, timestamp):
         new_timestamps = []
         new_values = []
         for v in values:
             new_timestamps.append(int(v['timestamp']))
             new_values.append(v['value'])
-            self.set_finality_last_time(host, int(v['timestamp']))
+        self.set_finality_last_time(host, int(timestamp))
         self.history_wastage[host]['finalities']['timestamps'].extend(
                                                                 new_timestamps)
         self.history_wastage[host]['finalities']['values'].extend(new_values)
@@ -670,13 +670,13 @@ class HistoryWastage:
         return period_demands
 
     # Set the history of demand of host
-    def set_demand_history(self, host, values):
+    def set_demand_history(self, host, values, timestamp):
         new_timestamps = []
         new_values = []
         for v in values:
             new_timestamps.append(int(v['timestamp']))
             new_values.append(v['value'])
-            self.set_demand_last_time(host, int(v['timestamp']))
+        self.set_demand_last_time(host, int(timestamp))
         self.history_wastage[host]['demands']['timestamps'].extend(
                                                                 new_timestamps)
         self.history_wastage[host]['demands']['values'].extend(new_values)

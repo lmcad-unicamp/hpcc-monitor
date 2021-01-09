@@ -9,8 +9,8 @@ import actions
 from wastageapi import HistoryWastage
 from sendemail import quotaexceeded_email
 from pprint import pprint
-home = os.path.dirname(os.path.realpath(__file__))
 
+home = os.path.dirname(os.path.realpath(__file__))
 logger = logging.getLogger(str(__file__))
 logger.setLevel(logging.INFO)
 fh = logging.FileHandler(home+"/log/calculator.log")
@@ -23,9 +23,9 @@ logger.addHandler(ch)
 
 HISTORY_VIRTUALMACHINES_FILE = home+"/files/history.virtualmachines.json"
 HISTORY_VOLUMES_FILE = home+"/files/history.volumes.json"
-METRIC_QUANTIFICATION_METRIC = 'system.cpu.util[all,user,avg1]'
+WASTAGE_QUANTIFICATION_METRIC = cs.WASTAGE_QUANTIFICATION_METRIC
 
-cs.initialize_testing()
+cs.calculator_init()
 virtualmachines = HistoryWastage(HISTORY_VIRTUALMACHINES_FILE, mode=cs.MODE)
 
 # Get hosts from Monitor Server
@@ -77,9 +77,7 @@ for host in hostsFromMonitorServer:
     # Categorizes the virtual machine
     buckets.virtualmachine_category(hostsFromMonitorServer[host],
                                        virtualmachines, monitorserver)
-    equations.virtualmachine_cost(hostsFromMonitorServer[host],
-                                       virtualmachines, monitorserver)
-    item = METRIC_QUANTIFICATION_METRIC
+    item = WASTAGE_QUANTIFICATION_METRIC
     values = monitorserver.get_history(host=hostsFromMonitorServer[host], 
                                     itemkey=item, till=cs.NOW,
                             since=virtualmachines.get_bucket_timestamp(host))
@@ -90,14 +88,14 @@ for host in hostsFromMonitorServer:
             item_delay = hostsFromMonitorServer[host]['items'][item]['delay']
             value_delay = monitorserver.convert_to_second(item_delay)
             timestamp = v['timestamp']
-            
+
             # Calculate boot wastage
             if timestamp - virtualmachines.get_last_time(host) >= 2*value_delay:
                 equations.boot_wastage(hostsFromMonitorServer[host], virtualmachines, 
                                         monitorserver, timestamp, value_delay)
             
             # Selects an instance that optimizes the cost and maintains the performance
-            selection, found = selections.virtualmachine_selection(
+            selection = selections.virtualmachine_selection(
                                                 hostsFromMonitorServer[host],
                                                 virtualmachines,
                                                 float(v['value']), 
