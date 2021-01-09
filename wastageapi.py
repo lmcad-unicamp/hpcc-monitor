@@ -122,16 +122,17 @@ class HistoryWastage:
     def add_host(self, host):
         self.history_wastage[host] = {}
         self.history_wastage[host]['last_time'] = 0
-        self.history_wastage[host]['last_time_bucket'] = 0
         self.history_wastage[host]['boot'] = 0
         self.history_wastage[host]['cost'] = {}
         self.history_wastage[host]['buckets'] = {}
         self.history_wastage[host]['buckets']['last_bucket'] = ''
         self.history_wastage[host]['buckets']['timestamp'] = 0
         self.history_wastage[host]['finalities'] = {}
+        self.history_wastage[host]['finalities']['last_time'] = 0
         self.history_wastage[host]['finalities']['timestamps'] = []
         self.history_wastage[host]['finalities']['values'] = []
         self.history_wastage[host]['demands'] = {}
+        self.history_wastage[host]['demands']['last_time'] = 0
         self.history_wastage[host]['demands']['timestamps'] = []
         self.history_wastage[host]['demands']['values'] = []
         self.history_wastage[host]['statistics'] = {}
@@ -179,6 +180,12 @@ class HistoryWastage:
 
             if 'cost' not in self.history_wastage[host]:
                 self.history_wastage[host]['cost'] = {}
+
+    # Reste the reset values
+    def reset_bucket(self, host, bucket):
+        self.history_wastage[host]['buckets'][bucket]['reset_action']['amount'] = 0
+        self.history_wastage[host]['buckets'][bucket]['reset_action']['timestamp'] = 0
+
 
     # Conver timelapse to string
     def timelapse_str(self, timelapse):
@@ -228,15 +235,6 @@ class HistoryWastage:
     # Get timestamp of the last time calculated
     def get_last_time(self, host):
         return self.history_wastage[host]['last_time']
-
-    # Set timestamp of the last time bucket
-    def set_last_time_bucket(self, host, timestamp):
-        if timestamp >= self.history_wastage[host]['last_time_bucket']:
-            self.history_wastage[host]['last_time_bucket'] = timestamp
-
-    # Get timestamp of the last time bucket
-    def get_last_time_bucket(self, host):
-        return self.history_wastage[host]['last_time_bucket']
 
     # Set boot wastage of a host
     def set_host_boot(self, host, boot, timelapse=None):
@@ -544,6 +542,15 @@ class HistoryWastage:
         else:
             return 0
     
+    
+    # Set the last timestamp of finality of host
+    def set_finality_last_time(self, host, timestamp):
+        self.history_wastage[host]['finalities']['last_time'] = timestamp
+
+    # Get the last timestamp of finality of host
+    def get_finality_last_time(self, host):
+        return self.history_wastage[host]['finalities']['last_time']
+
     # Get the last value of finality of host
     def get_finality_value(self, host):
         if self.history_wastage[host]['finalities']['values']:
@@ -592,7 +599,7 @@ class HistoryWastage:
         for v in values:
             new_timestamps.append(int(v['timestamp']))
             new_values.append(v['value'])
-            self.set_last_time_bucket(host, int(v['timestamp']))
+            self.set_finality_last_time(host, int(v['timestamp']))
         self.history_wastage[host]['finalities']['timestamps'].extend(
                                                                 new_timestamps)
         self.history_wastage[host]['finalities']['values'].extend(new_values)
@@ -613,6 +620,14 @@ class HistoryWastage:
         else:
             return 0
     
+    # Get the last timestamp of demand of host
+    def get_demand_last_time(self, host):
+        return self.history_wastage[host]['demands']['last_time']
+
+    # Set the last timestamp of demand of host
+    def set_demand_last_time(self, host, timestamp):
+        self.history_wastage[host]['demands']['last_time'] = timestamp
+
     # Get the last value of demand of host
     def get_demand_value(self, host):
         if self.history_wastage[host]['demands']['values']:
@@ -661,7 +676,7 @@ class HistoryWastage:
         for v in values:
             new_timestamps.append(int(v['timestamp']))
             new_values.append(v['value'])
-            self.set_last_time_bucket(host, int(v['timestamp']))
+            self.set_demand_last_time(host, int(v['timestamp']))
         self.history_wastage[host]['demands']['timestamps'].extend(
                                                                 new_timestamps)
         self.history_wastage[host]['demands']['values'].extend(new_values)

@@ -7,18 +7,18 @@ import pytz
 import json
 import time
 from pprint import pprint
-from datetime import datetime
+from datetime import datetime, timezone
 from subprocess import run, CalledProcessError
 
 home = os.path.dirname(os.path.realpath(__file__))
 logger = logging.getLogger(str(inspect.getouterframes(inspect.currentframe()
                                                       )[-1].filename))
 
-NOW = int(datetime.timestamp(datetime.utcnow().astimezone(pytz.utc)))
+NOW = int(datetime.utcnow().replace(tzinfo=timezone.utc).timestamp())
+
 IPSERVER = (open(home+"/private/ip_server", "r")).read().strip('\n')
 ZABBIX_USER = (open(home+"/private/zabbix_user", "r")).read().strip('\n')
-ZABBIX_PASSWORD = (open(home+"/private/zabbix_password", "r")
-                   ).read().strip('\n')
+ZABBIX_PASSWORD = (open(home+"/private/zabbix_password", "r")).read().strip('\n')
 
 zapi = pyzabbix.ZabbixAPI("http://"+str(IPSERVER)+"/zabbix/api_jsonrpc.php")
 zapi.login(ZABBIX_USER, ZABBIX_PASSWORD)

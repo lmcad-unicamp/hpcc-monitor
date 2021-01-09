@@ -1,3 +1,6 @@
+import logging
+import os
+import inspect
 import calculatorsetting as cs
 import zapi as monitorserver
 import awsapi as aws
@@ -5,7 +8,8 @@ from datetime import datetime
 from pprint import pprint
 from sendemail import notificationaction_email, recommendationaction_email, interventionaction_email
 
-TIME_BETWEEN_ACTIONS = 10*60
+TIME_BETWEEN_ACTIONS = 1 #10*60
+AMOUNT_OF_ACTIONS_TAKEN = 5
 
 THRESHOLDS = {'execution': {'high': {'accumulative': {
                                         'thresholds': [3], 
@@ -45,6 +49,9 @@ THRESHOLDS = {'execution': {'high': {'accumulative': {
                                         'action': ['recommendation']}}},
             }
 
+home = os.path.dirname(os.path.realpath(__file__))
+logger = logging.getLogger(str(inspect.getouterframes(inspect.currentframe()
+                                                      )[-1].filename))
 
 def intervention(host):
     if host['provider'] == 'aws':
@@ -52,16 +59,16 @@ def intervention(host):
 
 
 def take_action(host, bucket, selection, wastage, amount, action):
+    try:
+        emails = monitorserver.get_user_email(host['user'])
+        if amount >= AMOUNT_OF_ACTIONS_TAKEN:
+            emails.append(monitorserver.get_admins_email())
+    except monitorserver.NotFoudException:
+        emails = monitorserver.get_admins_email()
     if action == 'notification':
-        emails = monitorserver.get_user_email(host['user'])
-        if amount >= 5:
-            emails.append(monitorserver.get_admins_email())
-        print("NOTIFICATION")
-        #notificationaction_email(emails, host['id'], bucket, wastage, amount)
+        if cs.MODE == 'monitoring':
+            notificationaction_email(emails, host['id'], bucket, wastage, amount)
     elif action == 'recommendation':
-        emails = monitorserver.get_user_email(host['user'])
-        if amount >= 5:
-            emails.append(monitorserver.get_admins_email())
         if bucket == 'execution-low' or bucket == 'interaction-low' or bucket == 'server-low':
             recommendation = """\nYou should choose a cheaper instance type.\n
             Maybe one with the exact vCPU amount you are using.\n
@@ -73,16 +80,14 @@ def take_action(host, bucket, selection, wastage, amount, action):
             recommendation = """\nYou should choose a cheaper instance type.\n
             Maybe one with the exact vCPU amount you are using.\n
             I have selected this instance type for you: %s\n""" % (selection)
-        print("RECOMMENDATION")
-        #recommendationaction_email(emails, host['id'], bucket, wastage, amount, recommendation)
+        if cs.MODE == 'monitoring':
+            recommendationaction_email(emails, host['id'], bucket, wastage, amount, recommendation)
     elif action == 'intervention':
-        emails = monitorserver.get_user_email(host['user'])
-        if amount >= 5:
-            emails.append(monitorserver.get_admins_email())
-        print("INTERVETION")
         intervention(host)
-        #interventionaction_email(emails, host['id'], bucket, wastage)
+        if cs.MODE == 'monitoring':
+            interventionaction_email(emails, host['id'], bucket, wastage, amount)
 
+    logger.info("[ACTIONS] An action was taken for instance " + host['id'])
 
 def virtualmachine_action(host, virtualmachines, timestamp, bucket, selection):
     finality = bucket.split('-')[0]
@@ -91,16 +96,17 @@ def virtualmachine_action(host, virtualmachines, timestamp, bucket, selection):
     wastages = virtualmachines.get_bucket(host['id'], bucket)
 
     threshold = None
+    takeaction = False
     for t in range(len(THRESHOLDS[finality][demand]['accumulative']['thresholds'])):
         threshold = (THRESHOLDS[finality][demand]['accumulative']['thresholds'][t]
                         *virtualmachines.find_price(host['id'], timestamp))
-        threshold = 0.003332
         if threshold <= wastages['arbitrary']:
             threshold = t
+            takeaction = True
         else: break
-    
+
     actions_infos = virtualmachines.get_bucket_action(host['id'], bucket)
-    if actions_infos['timestamp'] - cs.NOW >= TIME_BETWEEN_ACTIONS:
+    if takeaction and cs.NOW - actions_infos['timestamp'] >= TIME_BETWEEN_ACTIONS:
         actions_infos['timestamp'] = cs.NOW
         actions_infos['amount'] += 1
         virtualmachines.set_bucket_action(host['id'], bucket, actions_infos)
@@ -111,16 +117,17 @@ def virtualmachine_action(host, virtualmachines, timestamp, bucket, selection):
     
     if 'reset' in THRESHOLDS[finality][demand]:
         threshold = None
+        takeaction = False
         for t in range(len(THRESHOLDS[finality][demand]['reset']['thresholds'])):
             threshold = (THRESHOLDS[finality][demand]['reset']['thresholds'][t]
                         *virtualmachines.find_price(host['id'], timestamp))
-            threshold = 0.0065
             if t <= wastages['reset']:
                 threshold = t
+                takeaction = True
             else: break
 
         actions_infos = virtualmachines.get_bucket_action(host['id'], bucket, 'reset_action')
-        if actions_infos['timestamp'] - cs.NOW >= TIME_BETWEEN_ACTIONS:
+        if takeaction and cs.NOW - actions_infos['timestamp'] >= TIME_BETWEEN_ACTIONS:
             actions_infos['timestamp'] = cs.NOW
             actions_infos['amount'] += 1
             virtualmachines.set_bucket_action(host['id'], bucket, actions_infos, 'reset_action')

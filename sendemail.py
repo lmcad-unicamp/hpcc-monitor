@@ -7,7 +7,6 @@ EMAIL_USER = (open(home+"/private/email_user", "r")).read().strip('\n')
 EMAIL_PASSWORD = (open(home+"/private/email_password", "r")).read().strip('\n')
 WEBSITE = (open(home+"/private/website", "r")).read().strip('\n')
 
-
 def send_email(emails, subject, message):
     s = smtplib.SMTP_SSL(host='smtp.gmail.com', port=465)
     s.ehlo()
@@ -16,7 +15,7 @@ def send_email(emails, subject, message):
     msg['Subject'] = subject
     msg['From'] = EMAIL_USER
     msg['To'] = emails
-    #s.sendmail(EMAIL_USER, emails, msg.as_string())
+    s.sendmail(EMAIL_USER, emails, msg.as_string())
     s.close()
 
 

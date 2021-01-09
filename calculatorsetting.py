@@ -1,5 +1,5 @@
 import pytz
-from datetime import datetime
+from datetime import datetime, timezone
 import awsapi as aws
 import json
 import os
@@ -94,7 +94,7 @@ def initialize_testing():
     global AVAILABLE_INSTANCES 
     global INSTANCES_PRICES
     global INSTANCES_RESOURCES
-    NOW = int(datetime.timestamp(datetime.utcnow().astimezone(pytz.utc)))
+    NOW = int(datetime.utcnow().replace(tzinfo=timezone.utc).timestamp())
     MODE = 'testing'
     VIRTUALMACHINES_CALCULATION = ['cost', 'equation-1', 'equation-2',
                                    'equation-3']

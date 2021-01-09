@@ -1,3 +1,6 @@
+import logging
+import os
+import inspect
 import calculatorsetting as cs
 import zapi as monitorserver
 from datetime import datetime
@@ -6,6 +9,10 @@ from pprint import pprint
 DEMANDS = {'execution': {'high': 90, 'low': 10, 'idle': 0},
             'server': {'high': 80, 'low': 10, 'idle': 0},
             'interaction': {'high': 70, 'low': 10, 'idle': 0}}
+
+home = os.path.dirname(os.path.realpath(__file__))
+logger = logging.getLogger(str(inspect.getouterframes(inspect.currentframe()
+                                                      )[-1].filename))
 
 
 def virtualmachine_category(host, virtualmachines, monitorserver, 
@@ -16,8 +23,8 @@ def virtualmachine_category(host, virtualmachines, monitorserver,
         values = monitorserver.get_history(host=host, itemkey=item, 
                                         till=timelapse[1], since=timelapse[0])
     else:
-        values = monitorserver.get_history(host=host, itemkey=item, till=cs.NOW,
-                        since=virtualmachines.get_last_time_bucket(host['id']))
+        values = monitorserver.get_history(host=host, itemkey=item,
+                        since=virtualmachines.get_finality_last_time(host['id']))
 
 
     # Categorize the finality
@@ -33,8 +40,6 @@ def virtualmachine_category(host, virtualmachines, monitorserver,
         if t['tag'] == 'server' and t['value'].upper() == 'TRUE':
             PREVIOUS_FINALITY = 'server'
             break
-    pprint(values)
-    input()
     # If there are values from ssh.connection
     if values:
         # For each value
@@ -71,7 +76,7 @@ def virtualmachine_category(host, virtualmachines, monitorserver,
                                         till=timelapse[1], since=timelapse[0])
     else:
         values = monitorserver.get_history(host=host, itemkey=item, till=cs.NOW,
-                        since=virtualmachines.get_demand_timestamp(host['id']))
+                        since=virtualmachines.get_demand_last_time(host['id']))
     
     LAST_DEMAND = virtualmachines.get_demand_value(host['id'])
     
@@ -94,6 +99,6 @@ def virtualmachine_category(host, virtualmachines, monitorserver,
                 val['timestamp'] = v['timestamp']
                 demands.append(val)
                 LAST_DEMAND = demand
-    if not demands and LAST_DEMAND != 'idle':
-        demands = [{'value': 'idle', 'timestamp': cs.NOW}]
     virtualmachines.set_demand_history(host['id'], demands)
+    logger.info("[BUCKET] The finalities and demands for instance " 
+                + host['id'] + " were updated")

@@ -23,6 +23,7 @@ logger.addHandler(ch)
 
 HISTORY_VIRTUALMACHINES_FILE = home+"/files/history.virtualmachines.json"
 HISTORY_VOLUMES_FILE = home+"/files/history.volumes.json"
+METRIC_QUANTIFICATION_METRIC = 'system.cpu.util[all,user,avg1]'
 
 cs.initialize_testing()
 virtualmachines = HistoryWastage(HISTORY_VIRTUALMACHINES_FILE, mode=cs.MODE)
@@ -76,7 +77,9 @@ for host in hostsFromMonitorServer:
     # Categorizes the virtual machine
     buckets.virtualmachine_category(hostsFromMonitorServer[host],
                                        virtualmachines, monitorserver)
-    item = 'system.cpu.util[all,user,avg1]'
+    equations.virtualmachine_cost(hostsFromMonitorServer[host],
+                                       virtualmachines, monitorserver)
+    item = METRIC_QUANTIFICATION_METRIC
     values = monitorserver.get_history(host=hostsFromMonitorServer[host], 
                                     itemkey=item, till=cs.NOW,
                             since=virtualmachines.get_bucket_timestamp(host))
@@ -85,8 +88,9 @@ for host in hostsFromMonitorServer:
         for v in values:
             # Convert the sample time to hour (which is the unit for prices)
             item_delay = hostsFromMonitorServer[host]['items'][item]['delay']
-            value_delay = monitorserver.convert_to_hour(item_delay)
+            value_delay = monitorserver.convert_to_second(item_delay)
             timestamp = v['timestamp']
+            
             # Calculate boot wastage
             if timestamp - virtualmachines.get_last_time(host) >= 2*value_delay:
                 equations.boot_wastage(hostsFromMonitorServer[host], virtualmachines, 
@@ -100,11 +104,13 @@ for host in hostsFromMonitorServer:
                                                 v['timestamp'], 
                                                 cs.HEURISTIC_COMPARE, 
                                                 cs.HEURISTIC_TYPE)
+
             # Get the bucket
             finality = virtualmachines.find_finality(host, timestamp)
             demand = virtualmachines.find_demand(host, timestamp)
             bucket = finality + '-' + demand
             # Calculates the wastages
+            value_delay = monitorserver.convert_to_hour(item_delay)
             equations.virtualmachine_calculates(hostsFromMonitorServer[host],
                                                 virtualmachines, monitorserver,
                                                 float(v['value']), timestamp, 
@@ -114,24 +120,9 @@ for host in hostsFromMonitorServer:
             actions.virtualmachine_action(hostsFromMonitorServer[host], 
                                 virtualmachines, timestamp, bucket, selection)
             virtualmachines.set_last_time(host, timestamp)
-            print(host, selection, bucket)
-            print("\n\n\n")
     continue
     
 
-    if 'cost' in cs.VIRTUALMACHINES_CALCULATION:
-        equations.virtualmachine_cost(hostsFromMonitorServer[host],
-                                       virtualmachines, monitorserver)
-    if 'equation-1' in cs.VIRTUALMACHINES_CALCULATION:
-        equations.virtualmachine_wastage_equation1(
-                hostsFromMonitorServer[host], virtualmachines, monitorserver)
-    if 'equation-2' in cs.VIRTUALMACHINES_CALCULATION:
-        equations.virtualmachine_wastage_equation2(
-                hostsFromMonitorServer[host], virtualmachines, monitorserver)
-    if 'equation-3' in cs.VIRTUALMACHINES_CALCULATION:
-        equations.virtualmachine_wastage_equation3(
-                hostsFromMonitorServer[host], virtualmachines, monitorserver)
-exit(1)
 # --------------------------------------------------------------------------
 volumes = HistoryWastage(HISTORY_VOLUMES_FILE, mode=cs.MODE)
 # Get volumes from Monitor Server

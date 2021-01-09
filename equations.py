@@ -1,3 +1,6 @@
+import logging
+import os
+import inspect
 import calculatorsetting as cs
 import selections
 from datetime import datetime
@@ -30,6 +33,12 @@ virtualmachines_equations = {
 }
 
 volumes_equations = {'equation-1': 'volume.space.free'}
+
+
+home = os.path.dirname(os.path.realpath(__file__))
+logger = logging.getLogger(str(inspect.getouterframes(inspect.currentframe()
+                                                      )[-1].filename))
+
 
 # This function calculates the compulsory and arbitrary wastage
 def virtualmachine_calculates(host, virtualmachines, monitorserver,
@@ -66,10 +75,9 @@ def virtualmachine_calculates(host, virtualmachines, monitorserver,
         virtualmachines.set_bucket_wastage(host['id'], bucket, 
                                             'arbitrary', arbitrary_wastage)
 
-        print(current_compulsory_wastage, current_wastage)
-        print(selected_price, current_price)
         # Calculates the reset wastage
         if bucket != virtualmachines.get_bucket_value(host['id']):
+            virtualmachines.reset_bucket(host['id'], bucket)
             reset_wastage = 0
         reset_wastage += current_wastage - current_compulsory_wastage
         virtualmachines.set_bucket_wastage(host['id'], bucket, 
@@ -81,15 +89,17 @@ def virtualmachine_calculates(host, virtualmachines, monitorserver,
         monitorserver.send_item(host['id'], 'wastage.'+bucket+'.arbitrary', arbitrary_wastage)
         monitorserver.send_item(host['id'], 'wastage.'+bucket+'.reset', reset_wastage)
     virtualmachines.update_bucket_infos(host['id'], bucket, timestamp)
-    pprint(bucket_history)
+
+    logger.info("[EQUATIONS] The wastage quantification was updated for instance " 
+                + host['id'])
 
 
 def boot_wastage(host, virtualmachines, monitorserver, timestamp, value_delay):
     # Calculate the boot time
-    last_time = virtualmachines.get_last_time(host)
+    last_time = virtualmachines.get_last_time(host['id'])
     if last_time == 0:
         last_time = int(datetime.timestamp(host['launchtime']))
-    boot_time = timestamp - virtualmachines.get_last_time(host) - value_delay
+    boot_time = (timestamp - last_time - value_delay)/3600
     # Get the current price
     current_price = virtualmachines.find_price(host['id'], timestamp)
     # Calculate boot wastage
@@ -97,6 +107,8 @@ def boot_wastage(host, virtualmachines, monitorserver, timestamp, value_delay):
     virtualmachines.set_host_boot(host['id'], boot_wastage)
     if cs.MODE == 'monitoring':
         monitorserver.send_item(host['id'], 'wastage.boot', boot_wastage)
+    logger.info("[EQUATIONS] The boot wastage quantification was updated for instance " 
+                + host['id'])
 
 
 
@@ -237,6 +249,8 @@ def virtualmachine_cost(host, virtualmachines, monitorserver,
         if cs.MODE == 'monitoring':
             monitorserver.send_item(host['id'], 'cost', cost_history['total'])
 
+    logger.info("[EQUATIONS] The cost quantification was updated for instance " 
+                + host['id'])
 
 # In this equation, each family of instances has a specific item to look
 def virtualmachine_wastage_equation1(host, virtualmachines, monitorserver, 

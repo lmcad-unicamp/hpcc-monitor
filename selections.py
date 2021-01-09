@@ -1,10 +1,12 @@
+import logging
+import os
+import inspect
 import calculatorsetting as cs
 import zapi as monitorserver
 from datetime import datetime
 from pprint import pprint
 import awsapi as aws
 import json
-import os
 import math
 
 RESOURCES = {
@@ -12,6 +14,10 @@ RESOURCES = {
     'gpu': 'gpu.utilization',
     'memory': 'vm.memory.size[pused]'
 }
+
+home = os.path.dirname(os.path.realpath(__file__))
+logger = logging.getLogger(str(inspect.getouterframes(inspect.currentframe()
+                                                      )[-1].filename))
 
 # This function removes the instances that do not satisfy 
 # the demand of each resource from the available instances
@@ -193,21 +199,26 @@ def virtualmachine_selection(host, virtualmachines, utilization,
                 resources_amounts[r] = math.ceil(resources_utilizations[r]*instances_resources[current_instance][r]/100.0)
 
     if 'vcpu' not in resources_utilizations:
-        return current_instance, False
+        logger.error("[SELECTION] The instance " + host['id'] + " does not have"
+                    + " vCPU utilization")
+        return current_instance
 
     # Filter the candidates based on all resources
     filtered_instances = filter(host, virtualmachines, resources_amounts, current_instance, timestamp)
 
 
     if heuristic == 'vcpu':
-        return vcpu_heuristic(host, virtualmachines, filtered_instances, 
+        selection, found = vcpu_heuristic(host, virtualmachines, filtered_instances, 
                                 resources_utilizations, timestamp, compare)
     if heuristic == 'cpu':
-        return cpu_heuristic(host, virtualmachines, filtered_instances, 
+        selection, found = cpu_heuristic(host, virtualmachines, filtered_instances, 
                                 resources_utilizations, timestamp, compare)
     if heuristic == 'both':
-        return both_heuristic(host, virtualmachines, filtered_instances, 
+        selection, found = both_heuristic(host, virtualmachines, filtered_instances, 
                                 resources_utilizations, timestamp, compare)
     if heuristic == 'topdown':
-        return top_down_heuristic(host, virtualmachines, filtered_instances, 
+        selection, found = top_down_heuristic(host, virtualmachines, filtered_instances, 
                                 resources_utilizations, timestamp, compare)
+    logger.info("[SELECTION] The selection using heuristic " + heuristic + "-" +
+                compare + " for instance " + host['id'] + " was " + selection)
+    return selection
