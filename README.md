@@ -55,3 +55,43 @@ selection.py: is the selection algorithm with different heuristics, you can defi
 equations.py: is the wastage quantification, you can define other equations, just alter the virtualmachine_calculates function
 action.py: are the actions that the system can take, you can define new actions, just add they to the take_action function
 ```
+
+### Zabbix configuration
+
+You must define [autoregistration actions](https://www.zabbix.com/documentation/4.0/manual/discovery/auto_registration).
+
+```
+zabbix-export - has the templates defined for our Zabbix server
+```
+
+You can add another monitoring server, you must develop all functions presented in zapi.py and import the file.
+
+### Providers
+
+We only developed the  API for AWS, but you can add APIs for other cloud providers. 
+You must develop all functions presented in aws.py using the respective provider API and add it to the audit-system and control-system.
+
+
+## This repository
+
+
+```
+/experiments: the experiment scripts and results folder
+actions.py: see Calculator section
+audit-system.py: is the code for the Auditor component
+aws.py: is the AWS API
+buckets.py: see Calculator section
+calculator.py: is the code for the Wastage Calculator component
+calculatorsetting.py: see Calculator section
+configure.py: is the script to configure the system
+control-system.py: is the Controller component
+create-user.py: is the script to execute to create a new user
+equations.py: see Calculator section
+installation.sh: is the system requirements installacion script
+selections.py: see Calculator section
+sendemail.py: the code to send emails
+wastageapi.py: the class to deal with the wastage history of each VM
+zabbix-agentd-install.sh: is the agent installation script to be executed in the VMs to be monitored
+zabbix-configuration.sh: is the agent configuration script to be executed in the VMs to be monitored
+zapi.py: is the Zabbix API
+```
