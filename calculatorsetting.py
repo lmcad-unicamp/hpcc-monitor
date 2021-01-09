@@ -2,7 +2,9 @@ import pytz
 from datetime import datetime, timezone
 import awsapi as aws
 import json
+import logging
 import os
+import inspect
 
 home = os.path.dirname(os.path.realpath(__file__))
 logger = logging.getLogger(str(inspect.getouterframes(inspect.currentframe()
