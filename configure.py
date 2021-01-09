@@ -55,6 +55,7 @@ print('\t' + 'Done!')
 print('\t' + 'Now, insert your provider credentials')
 
 keep = True
+providers = []
 while keep:
     provider = input("\t\tWhich provider do you want to add cretendials? "
                      + "(A)-Amazon Web Services "
@@ -63,12 +64,14 @@ while keep:
     if provider == 'A':
         aws_access_key = input('\t\tEnter the AWS Access Key: ')
         aws_secret_access_key = input('\t\tEnter the AWS Secret Access Key: ')
-
-        print('\t'+str("Done!"))
-        (open('private/aws_access_key', 'w'
-              )).write(aws_access_key+'\n')
-        (open('private/aws_secret_access_key', 'w'
-              )).write(aws_secret_access_key+'\n')
+        right = input('\t\tConfirm with Y. Cancel with any other charactere: ')
+        if right == 'Y':
+            print('\t'+str("Done!"))
+            (open('private/aws_access_key', 'w'
+                )).write(aws_access_key+'\n')
+            (open('private/aws_secret_access_key', 'w'
+                )).write(aws_secret_access_key+'\n')
+            providers.append('aws')
     elif provider == 'M':
         print('\t'+str("Not developed yet"))
 
@@ -81,6 +84,11 @@ while keep:
                   + '(N)o or any other charactere: ')
     if right == 'N':
         keep = False
+
+providers = ['aws']
+with open('private/providers', 'w') as providers_file:
+    for p in providers:
+        providers_file.write(p+'\n')
 
 print('\t'+str("Alright, everything is saved on /private directory"
       + ", if is the case, you can change the information there."))

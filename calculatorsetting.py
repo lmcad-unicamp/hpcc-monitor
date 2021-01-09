@@ -63,6 +63,72 @@ ACTION_TIME_BETWEEN_ACTIONS = 600
 # for a instance before notifing the admins
 # default: 5 times
 ACTION_AMOUNT_OF_ACTIONS_TAKEN = 5
+
+# The THRESHOLDS is the dict that tells the system the thresholds and the actions to be taken
+# You can define thresholds and actions for each finality and each demand
+# You can also not define thresholds and actions for a bucket, 
+# but once you have a threshold, you must define an action 
+# The bucket can have accumulative and reset quantification thresholds
+# Each one has a thresholds list, which are hours of wastage
+# and an actions list, which are the actions taken by the respective threshold
+# default: execution-high demand has accumulative quantification 
+#               and a threshold at 3 hours of wastage and 'notification' as an action
+#               This means that once the VM reaches the wastage in $ related to
+#                   3 hours, a notification will be sended
+#               For example, if the VM costs $2.00/h, 
+#                 3 hours of wastage means 3h*$2.00/h=$6.00
+#                 So the user will be notified when the wastage reaches $6.00 
+#       execution-high-accumulative: 3 notification
+#       execution-low-accumulative: 2 recommendation
+#       execution-idle-accumulative: 2 notification
+#       execution-idle-reset: 1 intervention
+#       server-high-accumulative: 3 notification
+#       server-high-reset: 1 recommendation
+#       server-low-accumulative: 3 recommendation
+#       server-idle-accumulative: 3 recommendation
+#       interaction-high-accumulative: 3 notification
+#       interaction-high-reset: 1 recommendation
+#       interaction-low-accumulative: 3 recommendation
+#       interaction-idle-accumulative: 3 recommendation
+
+
+ACTION_THRESHOLDS = {'execution': {'high': {'accumulative': {
+                                        'thresholds': [3], 
+                                        'action': ['notification']}},
+                            'low': {'accumulative': {
+                                        'thresholds': [2], 
+                                        'action': ['recommendation']}},
+                            'idle': {'accumulative': {
+                                        'thresholds': [2], 
+                                        'action': ['notification']}, 
+                                     'reset': {
+                                        'thresholds': [1], 
+                                        'action': ['intervention']}}},
+            'server':      {'high': {'accumulative': {
+                                        'thresholds': [3], 
+                                        'action': ['notification']},
+                                    'reset': {
+                                        'thresholds': [1], 
+                                        'action': ['recommendation']}},
+                            'low': {'accumulative': {
+                                        'thresholds': [3], 
+                                        'action': ['recommendation']}},
+                            'idle': {'accumulative': {
+                                        'thresholds': [3], 
+                                        'action': ['recommendation']}}},
+            'interaction': {'high': {'accumulative': {
+                                        'thresholds': [3], 
+                                        'action': ['notification']},
+                                     'reset': {
+                                        'thresholds': [1], 
+                                        'action': ['recommendation']}},
+                            'low': {'accumulative': {
+                                        'thresholds': [3], 
+                                        'action': ['recommendation']}},
+                            'idle': {'accumulative': {
+                                        'thresholds': [3], 
+                                        'action': ['recommendation']}}}
+            }
 #----------------------------------------------------------------------
 
 
@@ -91,7 +157,10 @@ def initialize_instances():
         AVAILABLE_INSTANCES = json.loads((open(AVAILABLE_INSTANCES_FILE, 'r')).read())
         if NOW - AVAILABLE_INSTANCES['timestamp'] > UPDATE_AVAILABLE_INSTANCES:
             AVAILABLE_INSTANCES = {}
-            AVAILABLE_INSTANCES['aws'] = aws.get_instance_types()
+            providers = (open(home+'/private/providers', "r")).read().splitlines()
+            for p in providers:
+                if p == 'aws':
+                    AVAILABLE_INSTANCES['aws'] = aws.get_instance_types()
             (open(AVAILABLE_INSTANCES_FILE, 'w+')).write(json.dumps({
                 'timestamp': NOW, 'data': AVAILABLE_INSTANCES}))
         else:
@@ -113,7 +182,10 @@ def initialize_instances():
 
     except (FileNotFoundError, json.decoder.JSONDecodeError):
         AVAILABLE_INSTANCES = {}
-        AVAILABLE_INSTANCES['aws'] = aws.get_instance_types()
+        providers = (open(home+'/private/providers', "r")).read().splitlines()
+        for p in providers:
+            if p == 'aws':
+                AVAILABLE_INSTANCES['aws'] = aws.get_instance_types()
         (open(AVAILABLE_INSTANCES_FILE, 'w+')).write(json.dumps({
             'timestamp': NOW, 'data': AVAILABLE_INSTANCES}))
         AVAILABLE_INSTANCES = AVAILABLE_INSTANCES['data']

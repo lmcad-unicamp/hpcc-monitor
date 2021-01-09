@@ -11,44 +11,7 @@ from sendemail import notificationaction_email, recommendationaction_email, inte
 TIME_BETWEEN_ACTIONS = cs.ACTION_TIME_BETWEEN_ACTIONS
 AMOUNT_OF_ACTIONS_TAKEN = cs.ACTION_AMOUNT_OF_ACTIONS_TAKEN
 
-THRESHOLDS = {'execution': {'high': {'accumulative': {
-                                        'thresholds': [3], 
-                                        'action': ['notification']}},
-                            'low': {'accumulative': {
-                                        'thresholds': [2], 
-                                        'action': ['recommendation']}},
-                            'idle': {'accumulative': {
-                                        'thresholds': [2], 
-                                        'action': ['notification']}, 
-                                     'reset': {
-                                        'thresholds': [1], 
-                                        'action': ['intervention']}}},
-            'server':      {'high': {'accumulative': {
-                                        'thresholds': [3], 
-                                        'action': ['notification']},
-                                    'reset': {
-                                        'thresholds': [1], 
-                                        'action': ['recommendation']}},
-                            'low': {'accumulative': {
-                                        'thresholds': [3], 
-                                        'action': ['recommendation']}},
-                            'idle': {'accumulative': {
-                                        'thresholds': [3], 
-                                        'action': ['recommendation']}}},
-            'interaction': {'high': {'accumulative': {
-                                        'thresholds': [3], 
-                                        'action': ['notification']},
-                                     'reset': {
-                                        'thresholds': [1], 
-                                        'action': ['recommendation']}},
-                            'low': {'accumulative': {
-                                        'thresholds': [3], 
-                                        'action': ['recommendation']}},
-                            'idle': {'accumulative': {
-                                        'thresholds': [3], 
-                                        'action': ['recommendation']}}},
-            }
-
+THRESHOLDS = cs.ACTION_THRESHOLDS
 home = os.path.dirname(os.path.realpath(__file__))
 logger = logging.getLogger(str(inspect.getouterframes(inspect.currentframe()
                                                       )[-1].filename))
@@ -92,26 +55,30 @@ def take_action(host, bucket, selection, wastage, amount, action):
 def virtualmachine_action(host, virtualmachines, timestamp, bucket, selection):
     finality = bucket.split('-')[0]
     demand = bucket.split('-')[1]
-    
+    if finality not in THRESHOLDS:
+        return
+    if demand not in THRESHOLDS[finality]:
+        return
+        
     wastages = virtualmachines.get_bucket(host['id'], bucket)
+    if 'accumulative' in THRESHOLDS[finality][demand]:
+        threshold = None
+        takeaction = False
+        for t in range(len(THRESHOLDS[finality][demand]['accumulative']['thresholds'])):
+            threshold = (THRESHOLDS[finality][demand]['accumulative']['thresholds'][t]
+                            *virtualmachines.find_price(host['id'], timestamp))
+            if threshold <= wastages['arbitrary']:
+                threshold = t
+                takeaction = True
+            else: break
 
-    threshold = None
-    takeaction = False
-    for t in range(len(THRESHOLDS[finality][demand]['accumulative']['thresholds'])):
-        threshold = (THRESHOLDS[finality][demand]['accumulative']['thresholds'][t]
-                        *virtualmachines.find_price(host['id'], timestamp))
-        if threshold <= wastages['arbitrary']:
-            threshold = t
-            takeaction = True
-        else: break
-
-    actions_infos = virtualmachines.get_bucket_action(host['id'], bucket)
-    if takeaction and cs.NOW - actions_infos['timestamp'] >= TIME_BETWEEN_ACTIONS:
-        actions_infos['timestamp'] = cs.NOW
-        actions_infos['amount'] += 1
-        virtualmachines.set_bucket_action(host['id'], bucket, actions_infos)
-        take_action(host, bucket, selection, wastages['arbitrary'], actions_infos['amount'],
-                    THRESHOLDS[finality][demand]['accumulative']['action'][t])
+        actions_infos = virtualmachines.get_bucket_action(host['id'], bucket)
+        if takeaction and cs.NOW - actions_infos['timestamp'] >= TIME_BETWEEN_ACTIONS:
+            actions_infos['timestamp'] = cs.NOW
+            actions_infos['amount'] += 1
+            virtualmachines.set_bucket_action(host['id'], bucket, actions_infos)
+            take_action(host, bucket, selection, wastages['arbitrary'], actions_infos['amount'],
+                        THRESHOLDS[finality][demand]['accumulative']['action'][t])
 
 
     

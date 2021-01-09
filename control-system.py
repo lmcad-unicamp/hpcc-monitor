@@ -20,11 +20,15 @@ logger.addHandler(ch)
 users = monitorserver.get_users()
 
 # Gets instances and volumes from providers
-instances = aws.get_instances(
-        pricing=True, ignore={'tags': {'monitorignore': ['True', 'true']},
+providers = (open(home+'/private/providers', "r")).read().splitlines()
+    
+instances = []
+for p in providers:
+    if p == "aws":
+        instances.extend(aws.get_instances(pricing=True, 
+                        ignore={'tags': {'monitorignore': ['True', 'true']},
                               'state': ['terminated', 'shutting-down'],
-                              'price': {'state': ['stopped', 'stopping']}})
-
+                              'price': {'state': ['stopped', 'stopping']}}))
 
 hostsFromProvider = {}
 hostsFromProviderStopped = {}
@@ -144,10 +148,13 @@ for host in hostsFromMonitorServer:
 # -------------------------------------------------------------------------
 
 # Get volumes from provider
-volumes = aws.get_volumes(pricing=True,
+volumes = []
+for p in providers:
+    if p == 'aws':
+        volumes.extend(aws.get_volumes(pricing=True,
                           ignore={'tags': {'monitorignore': ['True', 'true']},
                                   'state': ['error', 'creating',
-                                            'deleted', 'deleting']})
+                                            'deleted', 'deleting']}))
 
 
 # For each volume, we check if the user(user) is registered on Monitor Server

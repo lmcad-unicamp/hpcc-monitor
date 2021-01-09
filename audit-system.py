@@ -8,6 +8,7 @@ import pytz
 from sendemail import (notregistered_email, availablevolume_email,
                        usernotfound_email)
 
+
 # Setting Log File
 home = os.path.dirname(os.path.realpath(__file__))
 logger = logging.getLogger(__file__)
@@ -20,6 +21,7 @@ ch.setFormatter(formatter)
 logger.addHandler(fh)
 logger.addHandler(ch)
 
+#-------------------------------------------------------
 # Setting of constants
 STOPPED_INSTANCES_FILE = home+"/files/stopped-instances.hosts"
 NOTREGISTERED_INSTANCES_FILE = home+"/files/notregistered-instances.hosts"
@@ -30,8 +32,9 @@ AVAILABLE_VOLUMES_TIME_TO_NOTIFY = timedelta(days=4)
 NOTREGISTERED_USERS_FILE = home+"/files/notregistered-users.users"
 NOTREGISTERED_USERS_TIME_TO_NOTIFY = timedelta(minutes=30)
 STARTING_INSTANCES_TIME_TO_NOTIFY = timedelta(minutes=6)
-NOW = datetime.utcnow().astimezone(pytz.utc)
+#-------------------------------------------------------
 
+NOW = datetime.utcnow().astimezone(pytz.utc)
 
 # This function reads a history file
 def read_history_file(FILE_NAME):
@@ -57,11 +60,14 @@ def write_history_file(FILE_NAME, objects):
 users = monitorserver.get_users()
 
 # Get instances from providers
-instances = aws.get_instances(ignore={'tags': {'monitorignore':
-                                               ['True', 'true']},
-                                      'state': ['terminated',
-                                                'shutting-down']})
-
+providers = (open(home+'/private/providers', "r")).read().splitlines()
+instances = []
+for p in providers:
+    if p == 'aws':
+        instances.extend(aws.get_instances(ignore={
+                                        'tags': {'monitorignore': ['True', 'true']},
+                                        'state': ['terminated', 'shutting-down']}))
+print(instances)
 hostsFromProvider = {}
 hostsFromProviderStopped = {}
 hostsFromProviderUserNotRegistered = {}
@@ -227,7 +233,10 @@ write_history_file(NOTREGISTERED_INSTANCES_FILE, newNotregisteredInstances)
 
 # -----------------------------------------------------------------------------
 # Get volumes from provider
-volumes = aws.get_volumes(ignore={'tags': {'monitorignore': ['True', 'true']}})
+volumes = []
+for p in providers:
+    if p == 'aws':
+        volumes.extend(aws.get_volumes(ignore={'tags': {'monitorignore': ['True', 'true']}}))
 
 
 # For each volume, we check if the user(user) is registered on Monitor Server
