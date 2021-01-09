@@ -5,7 +5,8 @@ import json
 import os
 
 home = os.path.dirname(os.path.realpath(__file__))
-
+logger = logging.getLogger(str(inspect.getouterframes(inspect.currentframe()
+                                                      )[-1].filename))
 #-----------------
 # This variable defines the mode which the calculator will execute
 # Fell free to define new functions that initializes with different heuristics

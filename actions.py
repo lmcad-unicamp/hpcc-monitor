@@ -10,8 +10,8 @@ from sendemail import notificationaction_email, recommendationaction_email, inte
 
 TIME_BETWEEN_ACTIONS = cs.ACTION_TIME_BETWEEN_ACTIONS
 AMOUNT_OF_ACTIONS_TAKEN = cs.ACTION_AMOUNT_OF_ACTIONS_TAKEN
-
 THRESHOLDS = cs.ACTION_THRESHOLDS
+
 home = os.path.dirname(os.path.realpath(__file__))
 logger = logging.getLogger(str(inspect.getouterframes(inspect.currentframe()
                                                       )[-1].filename))
