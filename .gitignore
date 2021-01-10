@@ -1,6 +1,11 @@
 /log
 /private
 /files
-/experiments
 *.pyc
 .vscode
+/experiments/installation-time
+/experiments/limited-threads
+/experiments/monitoring-impact
+/experiments/unlimited-threads
+/experiments/simulations
+/experiments/graphs
