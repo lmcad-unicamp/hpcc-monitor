@@ -81,7 +81,7 @@ actions.py: see Calculator section
 audit-system.py: is the code for the Auditor component
 aws.py: is the AWS API
 buckets.py: see Calculator section
-calculator.py: is the code for the Wastage Calculator component
+calculator.py: is the code for the Wastage Monitor component
 calculatorsetting.py: see Calculator section
 configure.py: is the script to configure the system
 control-system.py: is the Controller component

@@ -450,6 +450,8 @@ class HistoryWastage:
             if bucket not in self.history_wastage[host][timelapse]['buckets']:
                 self.history_wastage[host][timelapse]['buckets'][bucket] = {}
                 self.history_wastage[host][timelapse]['buckets'][bucket][
+                                                    'residual'] = 0.0
+                self.history_wastage[host][timelapse]['buckets'][bucket][
                                                     'compulsory'] = 0.0
                 self.history_wastage[host][timelapse]['buckets'][bucket][
                                                     'arbitrary'] = 0.0
@@ -463,6 +465,7 @@ class HistoryWastage:
         else:
             if bucket not in self.history_wastage[host]['buckets']:
                 self.history_wastage[host]['buckets'][bucket] = {}
+                self.history_wastage[host]['buckets'][bucket]['residual'] = 0.0
                 self.history_wastage[host]['buckets'][bucket]['compulsory'] = 0.0
                 self.history_wastage[host]['buckets'][bucket]['arbitrary'] = 0.0
                 self.history_wastage[host]['buckets'][bucket]['reset'] = 0.0

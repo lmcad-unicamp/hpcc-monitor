@@ -1,6 +1,8 @@
 /log
 /private
 /files
-/experiments
 *.pyc
 .vscode
+/experiments/results
+/experiments/graphs-simulation
+/experiments/graphs

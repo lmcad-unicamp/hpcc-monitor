@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <zabbix_export>
     <version>4.4</version>
-    <date>2021-01-09T09:51:39Z</date>
+    <date>2021-04-04T00:12:41Z</date>
     <groups>
         <group>
             <name>aws-virtualmachines</name>
@@ -264,6 +264,15 @@
                     <units>USD</units>
                 </item>
                 <item>
+                    <name>Residual Wastage of Resources - Execution High</name>
+                    <type>TRAP</type>
+                    <key>wastage.execution-high.residual</key>
+                    <delay>0</delay>
+                    <history>600d</history>
+                    <value_type>FLOAT</value_type>
+                    <units>USD</units>
+                </item>
+                <item>
                     <name>Arbitrary Wastage of Resources - Execution Idle</name>
                     <type>TRAP</type>
                     <key>wastage.execution-idle.arbitrary</key>
@@ -285,6 +294,15 @@
                     <name>Reset Wastage of Resources - Execution Idle</name>
                     <type>TRAP</type>
                     <key>wastage.execution-idle.reset</key>
+                    <delay>0</delay>
+                    <history>600d</history>
+                    <value_type>FLOAT</value_type>
+                    <units>USD</units>
+                </item>
+                <item>
+                    <name>Residual Wastage of Resources - Execution Idle</name>
+                    <type>TRAP</type>
+                    <key>wastage.execution-idle.residual</key>
                     <delay>0</delay>
                     <history>600d</history>
                     <value_type>FLOAT</value_type>
@@ -318,6 +336,15 @@
                     <units>USD</units>
                 </item>
                 <item>
+                    <name>Residual Wastage of Resources - Execution Low</name>
+                    <type>TRAP</type>
+                    <key>wastage.execution-low.residual</key>
+                    <delay>0</delay>
+                    <history>600d</history>
+                    <value_type>FLOAT</value_type>
+                    <units>USD</units>
+                </item>
+                <item>
                     <name>Arbitrary Wastage of Resources - Interaction High</name>
                     <type>TRAP</type>
                     <key>wastage.interaction-high.arbitrary</key>
@@ -339,6 +366,15 @@
                     <name>Reset Wastage of Resources - Interaction High</name>
                     <type>TRAP</type>
                     <key>wastage.interaction-high.reset</key>
+                    <delay>0</delay>
+                    <history>600d</history>
+                    <value_type>FLOAT</value_type>
+                    <units>USD</units>
+                </item>
+                <item>
+                    <name>Residual Wastage of Resources - Interaction High</name>
+                    <type>TRAP</type>
+                    <key>wastage.interaction-high.residual</key>
                     <delay>0</delay>
                     <history>600d</history>
                     <value_type>FLOAT</value_type>
@@ -372,6 +408,15 @@
                     <units>USD</units>
                 </item>
                 <item>
+                    <name>Residual Wastage of Resources - Interaction Idle</name>
+                    <type>TRAP</type>
+                    <key>wastage.interaction-idle.residual</key>
+                    <delay>0</delay>
+                    <history>600d</history>
+                    <value_type>FLOAT</value_type>
+                    <units>USD</units>
+                </item>
+                <item>
                     <name>Arbitrary Wastage of Resources - Interaction Low</name>
                     <type>TRAP</type>
                     <key>wastage.interaction-low.arbitrary</key>
@@ -393,6 +438,15 @@
                     <name>Reset Wastage of Resources - Interaction Low</name>
                     <type>TRAP</type>
                     <key>wastage.interaction-low.reset</key>
+                    <delay>0</delay>
+                    <history>600d</history>
+                    <value_type>FLOAT</value_type>
+                    <units>USD</units>
+                </item>
+                <item>
+                    <name>Residual Wastage of Resources - Interaction Low</name>
+                    <type>TRAP</type>
+                    <key>wastage.interaction-low.residual</key>
                     <delay>0</delay>
                     <history>600d</history>
                     <value_type>FLOAT</value_type>
@@ -426,6 +480,15 @@
                     <units>USD</units>
                 </item>
                 <item>
+                    <name>Residual Wastage of Resources - Server High</name>
+                    <type>TRAP</type>
+                    <key>wastage.server-high.residual</key>
+                    <delay>0</delay>
+                    <history>600d</history>
+                    <value_type>FLOAT</value_type>
+                    <units>USD</units>
+                </item>
+                <item>
                     <name>Arbitrary Wastage of Resources - Server Idle</name>
                     <type>TRAP</type>
                     <key>wastage.server-idle.arbitrary</key>
@@ -453,6 +516,15 @@
                     <units>USD</units>
                 </item>
                 <item>
+                    <name>Residual Wastage of Resources - Server Idle</name>
+                    <type>TRAP</type>
+                    <key>wastage.server-idle.residual</key>
+                    <delay>0</delay>
+                    <history>600d</history>
+                    <value_type>FLOAT</value_type>
+                    <units>USD</units>
+                </item>
+                <item>
                     <name>Arbitrary Wastage of Resources - Server Low</name>
                     <type>TRAP</type>
                     <key>wastage.server-low.arbitrary</key>
@@ -474,6 +546,15 @@
                     <name>Reset Wastage of Resources - Server Low</name>
                     <type>TRAP</type>
                     <key>wastage.server-low.reset</key>
+                    <delay>0</delay>
+                    <history>600d</history>
+                    <value_type>FLOAT</value_type>
+                    <units>USD</units>
+                </item>
+                <item>
+                    <name>Residual Wastage of Resources - Server Low</name>
+                    <type>TRAP</type>
+                    <key>wastage.server-low.residual</key>
                     <delay>0</delay>
                     <history>600d</history>
                     <value_type>FLOAT</value_type>
