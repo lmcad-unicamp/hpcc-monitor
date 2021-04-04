@@ -3,9 +3,6 @@
 /files
 *.pyc
 .vscode
-/experiments/installation-time
-/experiments/limited-threads
-/experiments/monitoring-impact
-/experiments/unlimited-threads
-/experiments/simulations
+/experiments/results
+/experiments/graphs-simulation
 /experiments/graphs

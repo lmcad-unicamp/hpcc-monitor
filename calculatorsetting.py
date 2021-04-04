@@ -15,11 +15,11 @@ logger = logging.getLogger(str(inspect.getouterframes(inspect.currentframe()
 # values: experimenting (does not save history, takes actions or sends data do server)
 #         testing (does not send data to server or takes actions users, but saves history)
 #         monitoring (sends data to server and takes actions and saves history)
-MODE = 'testing'
+MODE = 'monitoring'
 #-----------------
 
 #--------------------------BUCKET.PY-----------------------------------
-# The DEMANDS dict tells the sytem the limits tha differ demands for each finality
+# The DEMANDS dict tells the system the limits tha differ demands for each finality
 # Feel free to define new finalities and new demands
 # To define a new finality, you should edit selections.py so the system can categorize a VM
 # To define a new demand, you just need to add it to the DEMANDS dict. It must be reversed sorted.

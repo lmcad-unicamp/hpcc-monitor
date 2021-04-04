@@ -1,7 +1,7 @@
 from experiments import scipy, json, os, re, heuristic_name, price_heuristics, pricereason_heuristics, sortedbyvcpu, INSTANCES 
 from pprint import pprint
 
-FILE = 'results/exp1.json'
+FILE = 'results/exp1.40.json'
 with open(FILE, 'r') as fp:
     heuristics = json.load(fp)
 
@@ -282,7 +282,7 @@ print("\n\n")
 
 
 
-FILE = 'results/exp2.json'
+FILE = 'results/exp2.40.json'
 with open(FILE, 'r') as fp:
     heuristics = json.load(fp)
 

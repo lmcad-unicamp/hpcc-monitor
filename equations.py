@@ -40,7 +40,7 @@ logger = logging.getLogger(str(inspect.getouterframes(inspect.currentframe()
                                                       )[-1].filename))
 
 
-# This function calculates the compulsory and arbitrary wastage and cost
+# This function calculates the residual, compulsory and arbitrary wastage and cost
 def virtualmachine_calculates(host, virtualmachines, monitorserver,
                                 utilization, timestamp, value_delay, 
                                 bucket, selection):
@@ -49,21 +49,22 @@ def virtualmachine_calculates(host, virtualmachines, monitorserver,
     
     # Get the bucket values
     virtualmachines.set_bucket(host['id'], bucket)
-    bucket_history = virtualmachines.get_bucket(host['id'], bucket) 
+    bucket_history = virtualmachines.get_bucket(host['id'], bucket)
+    residual_wastage = bucket_history['residual']
     compulsory_wastage = bucket_history['compulsory']
     arbitrary_wastage = bucket_history['arbitrary']
     reset_wastage = bucket_history['reset']
 
     if current_instance == selection:
-        # Calculates compulsory wastage
+        # Calculates residual wastage
         price = virtualmachines.find_price(host['id'], timestamp)
-        compulsory_wastage += (100-utilization) / 100.0 * price * value_delay
+        residual_wastage += (100-utilization) / 100.0 * price * value_delay
         total_cost = price * value_delay
         virtualmachines.set_bucket_wastage(host['id'], bucket, 
-                                            'compulsory', compulsory_wastage)
+                                            'residual', residual_wastage)
         virtualmachines.set_host_cost(host['id'], total_cost)
     else:
-        # Calculates compulsory wastage using the selected intance price
+        # Calculates compulsory wastage using the selected instance price
         selected_price = cs.INSTANCES_PRICES[host['provider']][host['region']][selection][host['price_infos']]['price']
         current_compulsory_wastage = (100-utilization) / 100.0 * selected_price * value_delay
         compulsory_wastage += current_compulsory_wastage
@@ -90,6 +91,7 @@ def virtualmachine_calculates(host, virtualmachines, monitorserver,
     # Send to montior server
     if cs.MODE == 'monitoring':
         monitorserver.send_item(host['id'], 'cost', total_cost)
+        monitorserver.send_item(host['id'], 'wastage.'+bucket+'.residual', residual_wastage)
         monitorserver.send_item(host['id'], 'wastage.'+bucket+'.compulsory', compulsory_wastage)
         monitorserver.send_item(host['id'], 'wastage.'+bucket+'.arbitrary', arbitrary_wastage)
         monitorserver.send_item(host['id'], 'wastage.'+bucket+'.reset', reset_wastage)
@@ -114,9 +116,6 @@ def boot_wastage(host, virtualmachines, monitorserver, timestamp, value_delay):
         monitorserver.send_item(host['id'], 'wastage.boot', boot_wastage)
     logger.info("[EQUATIONS] The boot wastage quantification was updated for instance " 
                 + host['id'])
-
-
-
 
 # This functions get statistics about resources
 def virtualmachines_statistics(host, virtualmachines, monitorserver,

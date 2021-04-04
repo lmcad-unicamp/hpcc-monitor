@@ -7,22 +7,22 @@ import scipy.stats
 from pprint import pprint
 
 APP = ['BT-1', 'LU-1', 'SP-1', 'FT-1', 'CG-1', 'IS-1',
-       'BT-2', 'LU-2', 'SP-2', 'FT-2', 'CG-2', 'IS-2',
-       'BT-3', 'LU-3', 'SP-3', 'FT-3', 'CG-3', 'IS-3',
-       'EP-1', 'EP-2', 'EP-3']
+        'BT-2', 'LU-2', 'SP-2', 'FT-2', 'CG-2', 'IS-2',
+        'BT-3', 'LU-3', 'SP-3', 'FT-3', 'CG-3', 'IS-3',
+        'EP-1', 'EP-2', 'EP-3']
 
 pricereason_exp = True
 price_exp = True
 home = os.path.dirname(os.path.realpath(__file__))
 EXPERIMENTS_DIR = home + "/results"
-EXPERIMENTS_FILE = EXPERIMENTS_DIR + "/" + "exp.json"
+EXPERIMENTS_FILE = EXPERIMENTS_DIR + "/" + "exp2.40.json"
 if not os.path.exists(EXPERIMENTS_DIR):
     os.makedirs(EXPERIMENTS_DIR)
 DIR = {}
 for i in APP:
     DIR[i] = {}
-    DIR[i]['experiment4'] = 'limited-threads/4/'+i+'/'
-    DIR[i]['experiment16'] = 'limited-threads/16/'+i+'/'
+    #DIR[i]['experiment4'] = 'limited-threads/4/'+i+'/'
+    #DIR[i]['experiment16'] = 'limited-threads/16/'+i+'/'
     DIR[i]['experiments'] = 'unlimited-threads/experiments/'+i+'/'
     DIR[i]['selections'] = 'unlimited-threads/selections/'+i+'/'
 
@@ -56,12 +56,12 @@ sortedbyvcpu = ['r5axlarge', 'r5xlarge', 't32xlarge', 'r5a2xlarge',
                 'c5a8xlarge', 'r58xlarge', 'r5n8xlarge', 'c59xlarge', 
                 'c5n9xlarge', 'c512xlarge', 'r512xlarge', 'r5n12xlarge']
 
-heuristic_name = {'vcpu': 'vCPU-', 'cpu': 'CPU-', 
-                'both': 'both-', 'topdown': 'top-down-',
-                'vcpu-pricereason': 'vCPU-pr-', 
-                'cpu-pricereason': 'CPU-pr-', 
-                'both-pricereason': 'both-pr-', 
-                'topdown-pricereason': 'top-down-pr-'}
+heuristic_name = {'vcpu': 'vCPU-', 'cpu': 'core-', 
+                'both': 'hybrid-', 'topdown': 'top-down-',
+                'vcpu-pricereason': 'vCPU-ppv-', 
+                'cpu-pricereason': 'core-ppv-', 
+                'both-pricereason': 'hybrid-ppv-', 
+                'topdown-pricereason': 'top-down-ppv-'}
 EXP = {}
 ALL_EXP = {}
 BETTER = {}
@@ -173,7 +173,21 @@ if __name__ == '__main__':
         heuristic['bglobal-costovperf'] = this[selected]['pi'] / BETTER[app]['global']['costpi']
         heuristic['bglobal-piovcost'] = this[selected]['cost'] / BETTER[app]['global']['picost']
         heuristic['bglobal-piovperf'] = this[selected]['pi'] / BETTER[app]['global']['pi']
-                
+    
+    def paramount_iteration_lower_than():
+        for app in APP:
+            for dir in DIR[app]:
+                dir = DIR[app][dir]
+                if os.path.exists(dir):
+                    for file in os.listdir(dir):
+                        if file.endswith(".exp"):
+                            a = float(os.popen("gawk '/ParamountItEnd/ {NUM+=1} END {print NUM}' "+dir+file).read().rstrip())
+                            a = int(a)
+                            if a < 40:
+                                print(a, app, dir, file)
+
+    paramount_iteration_lower_than()
+
     for app in APP:
         EXP[app] = {}
         ALL_EXP[app] = []
@@ -197,7 +211,8 @@ if __name__ == '__main__':
                         EXP[app][numthreads][instancename] = {}
                         this = EXP[app][numthreads][instancename]
                         this['threads'] = numthreads
-                        pi = float(os.popen("gawk '/ParamountItEnd/ {SUM+=$10} END {print SUM/NR/1000/1000}' "+dir+file).read().rstrip())
+                        pi = float(os.popen("gawk '/ParamountItEnd/ {if (NUM<40) SUM+=$10; NUM+=1;} END {print SUM/40/1000/1000}' "+dir+file).read().rstrip())
+                        #pi = float(os.popen("gawk '/ParamountItEnd/ {SUM+=$10} END {print SUM/NR/1000/1000}' "+dir+file).read().rstrip())
                         this['pi'] = pi
                         cost = pi * INSTANCES[instancename]['price'] / 60 / 60
                         this['cost'] = cost

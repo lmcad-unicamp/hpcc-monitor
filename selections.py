@@ -13,7 +13,12 @@ RESOURCES = cs.SELECTIONS_RESOURCES
 
 home = os.path.dirname(os.path.realpath(__file__))
 logger = logging.getLogger(str(inspect.getouterframes(inspect.currentframe()
-                                                      )[-1].filename))
+                                                    )[-1].filename))
+#-----------------
+# There are four types of heuristics: 'vcpu', 'cpu' (core), 'both' (hybrid) and 'top-down'
+# each one with 'price' and 'price-reason' (price-per-vCPU) versions
+
+
 
 # This function removes the instances that do not satisfy 
 # the demand of each resource from the available instances
