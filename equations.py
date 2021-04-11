@@ -64,17 +64,11 @@ def virtualmachine_calculates(host, virtualmachines, monitorserver,
                                             'residual', residual_wastage)
         virtualmachines.set_host_cost(host['id'], total_cost)
     else:
-        # Calculates compulsory wastage using the selected instance price
-        selected_price = cs.INSTANCES_PRICES[host['provider']][host['region']][selection][host['price_infos']]['price']
-        current_compulsory_wastage = (100-utilization) / 100.0 * selected_price * value_delay
-        compulsory_wastage += current_compulsory_wastage
-        virtualmachines.set_bucket_wastage(host['id'], bucket, 
-                                            'compulsory', compulsory_wastage)
         # Calculates arbitrary wastage
+        selected_price = cs.INSTANCES_PRICES[host['provider']][host['region']][selection][host['price_infos']]['price']
         current_price = virtualmachines.find_price(host['id'], timestamp)
-
-        current_wastage = (100-utilization) / 100.0 * current_price * value_delay
-        arbitrary_wastage += current_wastage - current_compulsory_wastage
+        current_wastage = (current_price - selected_price) * value_delay
+        arbitrary_wastage += current_wastage
         virtualmachines.set_bucket_wastage(host['id'], bucket, 
                                             'arbitrary', arbitrary_wastage)
 
@@ -83,7 +77,7 @@ def virtualmachine_calculates(host, virtualmachines, monitorserver,
         if bucket != virtualmachines.get_bucket_value(host['id']):
             virtualmachines.reset_bucket(host['id'], bucket)
             reset_wastage = 0
-        reset_wastage += current_wastage - current_compulsory_wastage
+        reset_wastage += current_wastage
         virtualmachines.set_bucket_wastage(host['id'], bucket, 
                                             'reset', reset_wastage)
         virtualmachines.set_host_cost(host['id'], total_cost)
@@ -92,7 +86,7 @@ def virtualmachine_calculates(host, virtualmachines, monitorserver,
     if cs.MODE == 'monitoring':
         monitorserver.send_item(host['id'], 'cost', total_cost)
         monitorserver.send_item(host['id'], 'wastage.'+bucket+'.residual', residual_wastage)
-        monitorserver.send_item(host['id'], 'wastage.'+bucket+'.compulsory', compulsory_wastage)
+        #monitorserver.send_item(host['id'], 'wastage.'+bucket+'.compulsory', compulsory_wastage)
         monitorserver.send_item(host['id'], 'wastage.'+bucket+'.arbitrary', arbitrary_wastage)
         monitorserver.send_item(host['id'], 'wastage.'+bucket+'.reset', reset_wastage)
     virtualmachines.update_bucket_infos(host['id'], bucket, timestamp)
