@@ -93,28 +93,28 @@ if x['h5']:
 if x['h6']:
     p+=1
     plt.scatter(x['h6'], y['h6'], s=sizes['h6'], c='#0000FF', marker='o',
-            edgecolor='black', linewidth=0.5, alpha=1, label='CPU-')
+            edgecolor='black', linewidth=0.5, alpha=1, label='core-')
 if x['h7']:
     p+=1
     plt.scatter(x['h7'], y['h7'], s=sizes['h7'], c='#FFFF00', marker='o',
-            edgecolor='black', linewidth=0.5, alpha=1, label='both-')
+            edgecolor='black', linewidth=0.5, alpha=1, label='hybrid-')
 if x['h5-h6']:
     p+=1
     plt.scatter(x['h5-h6'], y['h5-h6'], s=sizes['h5-h6'], c='#6600FF', marker='o',
-            edgecolor='black', linewidth=0.5, alpha=1, label='vCPU- and CPU-')
+            edgecolor='black', linewidth=0.5, alpha=1, label='vCPU- and core-')
 if x['h5-h7']:
     p+=1
     #FF6600
     plt.scatter(x['h5-h7'], y['h5-h7'], s=sizes['h5-h7'], c='#FFFF00', marker='o',
-            edgecolor='black', linewidth=0.5, alpha=1, label='vCPU- and both-')
+            edgecolor='black', linewidth=0.5, alpha=1, label='vCPU- and hybrid-')
 if x['h6-h7']:
     p+=1
     plt.scatter(x['h6-h7'], y['h6-h7'], s=sizes['h6-h7'], c='#00FF00', marker='o',
-            edgecolor='black', linewidth=0.5, alpha=1, label='CPU- and both-')
+            edgecolor='black', linewidth=0.5, alpha=1, label='core- and hybrid-')
 if x['h5-h6-h7']:
     p+=1
     plt.scatter(x['h5-h6-h7'], y['h5-h6-h7'], s=sizes['h5-h6-h7'], c='#5c5c5c', marker='o',
-            edgecolor='black', linewidth=0.5, alpha=1, label='vCPU- and vCPU- and both-')
+            edgecolor='black', linewidth=0.5, alpha=1, label='vCPU- and core- and hybrid-')
 if x['h8']:
     p+=1
     #e30079
@@ -272,28 +272,28 @@ if x['h5']:
 if x['h6']:
     p+=1
     plt.scatter(x['h6'], y['h6'], s=sizes['h6'], c='#0000FF', marker='o',
-            edgecolor='black', linewidth=0.5, alpha=1, label='CPU-ppv-')
+            edgecolor='black', linewidth=0.5, alpha=1, label='core-ppv-')
 if x['h7']:
     p+=1
     plt.scatter(x['h7'], y['h7'], s=sizes['h7'], c='#FFFF00', marker='o',
-            edgecolor='black', linewidth=0.5, alpha=1, label='both-ppv-')
+            edgecolor='black', linewidth=0.5, alpha=1, label='hybrid-ppv-')
 if x['h5-h6']:
     p+=1
     plt.scatter(x['h5-h6'], y['h5-h6'], s=sizes['h5-h6'], c='#6600FF', marker='o',
-            edgecolor='black', linewidth=0.5, alpha=1, label='vCPU-ppv- and CPU-ppv-')
+            edgecolor='black', linewidth=0.5, alpha=1, label='vCPU-ppv- and core-ppv-')
 if x['h6-h7']:
     p+=1
     plt.scatter(x['h6-h7'], y['h6-h7'], s=sizes['h6-h7'], c='#00FF00', marker='o',
-            edgecolor='black', linewidth=0.5, alpha=1, label='CPU-ppv- and both-ppv-')
+            edgecolor='black', linewidth=0.5, alpha=1, label='core-ppv- and hybrid-ppv-')
 if x['h5-h7']:
     p+=1
     #FF6600
     plt.scatter(x['h5-h7'], y['h5-h7'], s=sizes['h5-h7'], c='#FFFF00', marker='o',
-            edgecolor='black', linewidth=0.5, alpha=1, label='vCPU-ppv- and both-ppv-')
+            edgecolor='black', linewidth=0.5, alpha=1, label='vCPU-ppv- and hybrid-ppv-')
 if x['h5-h6-h7']:
     p+=1
     plt.scatter(x['h5-h6-h7'], y['h5-h6-h7'], s=sizes['h5-h6-h7'], c='#5c5c5c', marker='o',
-            edgecolor='black', linewidth=0.5, alpha=1, label='vCPU-ppv- and vCPU-ppv- and both-ppv-')
+            edgecolor='black', linewidth=0.5, alpha=1, label='vCPU-ppv- and core-ppv- and hybrid-ppv-')
 if x['h8']:
     p+=1
     #e30079
