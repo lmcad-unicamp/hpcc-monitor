@@ -21,6 +21,7 @@ graphs-relation-to-application.py: creates graphs to the relation between heuris
 graphs-relation-to-heuristics.py: creates graphs to the relation between the heuristics
 graphs-relation-to-utilization.py: creates graphs to the relation between heuristics and vCPU utilization rate
 
+NPB3.4-MPI-instrumentado.tar.xz: the benchmark instrumented to get the paramount iterations
 results.tar.xz: see below
 
 simulation-execution-demands.py: creates the graphs of a simulation of demands for execution finality
