@@ -22,7 +22,7 @@ heuristicsnumber = {'vcpu': 'h5', 'cpu': 'h6', 'both': 'h7', 'topdown': 'h8',
                     'both-pricereason': 'h7', 'topdown-pricereason': 'h8'}
 
 #------------------------------------ price
-FILE = 'results/exp2.40.json'
+FILE = 'results/exp2.json'
 with open(FILE, 'r') as fp:
     heuristics = json.load(fp)
 GRAPHS_DIR = 'graphs'
@@ -34,16 +34,17 @@ for heuristic in price_heuristics:
     for app in heuristics[heuristic]:
         for threads in heuristics[heuristic][app]:
             for vm in heuristics[heuristic][app][threads]:
-                if vm != heuristics[heuristic][app][threads][vm]['selected']['instance']['name']:
-                    tupl = (heuristics[heuristic][app][threads][vm]['ovcost'], heuristics[heuristic][app][threads][vm]['ovperf'])
-                    if tupl not in data:
-                        data[tupl] = {}
-                        data[tupl]['total'] = 0
-                    if heuristic not in data[tupl]:
-                        data[tupl][heuristicsnumber[heuristic]] = 0
-                    data[tupl][heuristicsnumber[heuristic]] = data[tupl][heuristicsnumber[heuristic]] + 1
-                    if heuristic != 'topdown':
-                        data[tupl]['total'] = data[tupl]['total'] + 1
+                if heuristics[heuristic][app][threads][vm]['current']['experiment']:
+                    if vm != heuristics[heuristic][app][threads][vm]['selected']['instance']['name']:
+                        tupl = (heuristics[heuristic][app][threads][vm]['ovcost'], heuristics[heuristic][app][threads][vm]['ovperf'])
+                        if tupl not in data:
+                            data[tupl] = {}
+                            data[tupl]['total'] = 0
+                        if heuristic not in data[tupl]:
+                            data[tupl][heuristicsnumber[heuristic]] = 0
+                        data[tupl][heuristicsnumber[heuristic]] = data[tupl][heuristicsnumber[heuristic]] + 1
+                        if heuristic != 'topdown':
+                            data[tupl]['total'] = data[tupl]['total'] + 1
 
 x={'h5':[], 'h6':[], 'h7':[], 'h8':[], 'h5-h6':[], 'h5-h7':[], 'h6-h7':[], 'h5-h6-h7':[]}
 y={'h5':[], 'h6':[], 'h7':[], 'h8':[], 'h5-h6':[], 'h5-h7':[], 'h6-h7':[], 'h5-h6-h7':[]}
@@ -121,17 +122,16 @@ if x['h8']:
     plt.scatter(x['h8'], y['h8'], s=sizes['h8'], c='#0000FF', marker='x', 
             linewidth=0.7, alpha=1, label='top-down-')
 
-lgnd = plt.legend(loc='lower right')
+lgnd = plt.legend(loc='upper left', facecolor='white', frameon=True)
 for i in lgnd.legendHandles:
     i._sizes = [50]
-lgnd.get_frame().set_linewidth(100)
 plt.ylabel("Performance Speedup")
 plt.xlabel("Cost Reduction")
-plt.hlines(1, 0.3, 4.5, color='#000')
+plt.hlines(1, 0.2, 3, color='#000')
 plt.vlines(1, 0.0, 4.5, color='#000')
-plt.xlim(0.3, 4.5)
-plt.ylim(0.2, 2)
-plt.yticks([0.25, 0.50, 0.75, 1, 1.25, 1.5, 1.75, 2])
+plt.xlim(0.2, 3)
+plt.ylim(0.1, 2)
+#plt.yticks([0.25, 0.50, 0.75, 1, 1.25, 1.5, 1.75, 2])
 plt.savefig(GRAPHS_DIR+'/'+'heuristics-selections.svg', dpi=100,
             bbox_inches='tight', format='svg', pad_inches = 0)
 plt.show()
@@ -152,9 +152,11 @@ for heuristic in price_heuristics:
     for app in heuristics[heuristic]:
         for threads in heuristics[heuristic][app]:
             for vm in heuristics[heuristic][app][threads]:
-                data[heuristic]['perf'].append(heuristics[heuristic][app][threads][vm]['ovperf'])
-                data[heuristic]['cost'].append(heuristics[heuristic][app][threads][vm]['ovcost'])
-
+                if heuristics[heuristic][app][threads][vm]['current']['experiment']:
+                    if vm != heuristics[heuristic][app][threads][vm]['selected']['instance']['name']:
+                        data[heuristic]['perf'].append(heuristics[heuristic][app][threads][vm]['ovperf'])
+                        data[heuristic]['cost'].append(heuristics[heuristic][app][threads][vm]['ovcost'])
+pprint(data)
 for h,c in zip(data, colors):
     ax.scatter(scipy.stats.mstats.gmean(data[h]['cost']), 
                 scipy.stats.mstats.gmean(data[h]['perf']),
@@ -174,24 +176,24 @@ for h,c in zip(data, colors):
 
 handles = [f("o", colors[i]) for i in range(4)]
 labels = [heuristic_name[h] for h in price_heuristics]
-plt.legend(handles=handles, labels=labels, loc='lower right')
+plt.legend(handles=handles, labels=labels, loc='lower right', facecolor='white', frameon=True)
 
-axins = ax.inset_axes([.5, 0.6, 0.7, 0.5])
+axins = ax.inset_axes([.6, 0.7, 0.7, 0.5])
 for h,c in zip(data, colors):
     axins.errorbar(scipy.stats.mstats.gmean(data[h]['cost']), 
                 scipy.stats.mstats.gmean(data[h]['perf']),
                 yerr=mean_confidence_interval(data[h]['perf']),
                 xerr=mean_confidence_interval(data[h]['cost']), 
                 c=c, alpha=0.5, fmt='o')
-axins.set_xlim(0.9, 1.5)
-axins.set_ylim(0.70, 1.01)
-axins.hlines(1, 0.9, 1.5, color='#000')
-axins.vlines(1, 0.70, 1.01, color='#000')
-axins.hlines(0.70, 0.9, 1.5, color='#000')
-axins.hlines(1.01, 0.9, 1.5, color='#000')
-axins.vlines(0.9, 0.70, 1.01, color='#000')
-axins.vlines(1.5, 0.70, 1.01, color='#000')
-axins.set_yticks([0.70, 0.80, 0.90, 1.00])
+axins.set_xlim(0.99, 1.7)
+axins.set_ylim(0.65, 1.20)
+axins.hlines(1, 0.99, 1.7, color='#000')
+axins.vlines(1, 0.65, 1.20, color='#000')
+axins.hlines(0.65, 0.99, 1.7, color='#000')
+axins.hlines(1.20, 0.99, 1.7, color='#000')
+axins.vlines(0.99, 0.65, 1.20, color='#000')
+axins.vlines(1.7, 0.65, 1.20, color='#000')
+axins.set_yticks([0.70, 0.80, 0.90, 1.00, 1.10, 1.20])
 
 ax.indicate_inset_zoom(axins)
 
@@ -199,8 +201,8 @@ plt.ylabel("Performance Speedup")
 plt.xlabel("Cost Reduction")
 plt.hlines(1, 0.0, 4.5, color='#000')
 plt.vlines(1, 0.0, 4.5, color='#000')
-plt.xlim(0.0, 4.5)
-plt.ylim(0.0, 2)
+plt.xlim(0.3, 3.0)
+plt.ylim(0.25, 1.75)
 plt.savefig(GRAPHS_DIR+'/'+'heuristics-mean.svg', dpi=100, 
             bbox_inches='tight', format='svg', pad_inches = 0)
 plt.show()
@@ -213,16 +215,17 @@ for heuristic in pricereason_heuristics:
     for app in heuristics[heuristic]:
         for threads in heuristics[heuristic][app]:
             for vm in heuristics[heuristic][app][threads]:
-                if vm != heuristics[heuristic][app][threads][vm]['selected']['instance']['name']:
-                    tupl = (heuristics[heuristic][app][threads][vm]['ovcost'], heuristics[heuristic][app][threads][vm]['ovperf'])
-                    if tupl not in data:
-                        data[tupl] = {}
-                        data[tupl]['total'] = 0
-                    if heuristic not in data[tupl]:
-                        data[tupl][heuristicsnumber[heuristic]] = 0
-                    data[tupl][heuristicsnumber[heuristic]] = data[tupl][heuristicsnumber[heuristic]] + 1
-                    if heuristic != 'topdown':
-                        data[tupl]['total'] = data[tupl]['total'] + 1
+                if heuristics[heuristic][app][threads][vm]['current']['experiment']:
+                    if vm != heuristics[heuristic][app][threads][vm]['selected']['instance']['name']:
+                        tupl = (heuristics[heuristic][app][threads][vm]['ovcost'], heuristics[heuristic][app][threads][vm]['ovperf'])
+                        if tupl not in data:
+                            data[tupl] = {}
+                            data[tupl]['total'] = 0
+                        if heuristic not in data[tupl]:
+                            data[tupl][heuristicsnumber[heuristic]] = 0
+                        data[tupl][heuristicsnumber[heuristic]] = data[tupl][heuristicsnumber[heuristic]] + 1
+                        if heuristic != 'topdown':
+                            data[tupl]['total'] = data[tupl]['total'] + 1
 
 x={'h5':[], 'h6':[], 'h7':[], 'h8':[], 'h5-h6':[], 'h5-h7':[], 'h6-h7':[], 'h5-h6-h7':[]}
 y={'h5':[], 'h6':[], 'h7':[], 'h8':[], 'h5-h6':[], 'h5-h7':[], 'h6-h7':[], 'h5-h6-h7':[]}
@@ -306,9 +309,9 @@ for i in lgnd.legendHandles:
 #lgnd.get_frame().set_linewidth(100)
 plt.ylabel("Performance Speedup")
 plt.xlabel("Cost Reduction")
-plt.hlines(1, 0.0, 4.5, color='#000')
+plt.hlines(1, 0.0, 4, color='#000')
 plt.vlines(1, 0.0, 6, color='#000')
-plt.xlim(0.0, 4.5)
+plt.xlim(0.0, 4)
 plt.ylim(0.0, 6)
 plt.savefig(GRAPHS_DIR+'/'+'heuristics-pr-selections.svg', dpi=100,
             bbox_inches='tight', format='svg', pad_inches = 0)
@@ -330,8 +333,10 @@ for heuristic in pricereason_heuristics:
     for app in heuristics[heuristic]:
         for threads in heuristics[heuristic][app]:
             for vm in heuristics[heuristic][app][threads]:
-                data[heuristic]['perf'].append(heuristics[heuristic][app][threads][vm]['ovperf'])
-                data[heuristic]['cost'].append(heuristics[heuristic][app][threads][vm]['ovcost'])
+                if heuristics[heuristic][app][threads][vm]['current']['experiment']:
+                    if vm != heuristics[heuristic][app][threads][vm]['selected']['instance']['name']:
+                        data[heuristic]['perf'].append(heuristics[heuristic][app][threads][vm]['ovperf'])
+                        data[heuristic]['cost'].append(heuristics[heuristic][app][threads][vm]['ovcost'])
 
 for h,c in zip(data, colors[4:]):
     ax.scatter(scipy.stats.mstats.gmean(data[h]['cost']), 
@@ -352,7 +357,7 @@ for h,c in zip(data, colors[4:]):
 
 handles = [f("o", colors[i+4]) for i in range(4)]
 labels = [heuristic_name[h] for h in pricereason_heuristics]
-plt.legend(handles=handles, labels=labels, loc='upper left')
+plt.legend(handles=handles, labels=labels, loc='upper left', facecolor='white', frameon=True)
 
 axins = ax.inset_axes([.5, 0.6, 0.7, 0.5])
 for h,c in zip(data, colors[4:]):
@@ -361,23 +366,23 @@ for h,c in zip(data, colors[4:]):
                 yerr=mean_confidence_interval(data[h]['perf']),
                 xerr=mean_confidence_interval(data[h]['cost']), 
                 c=c, alpha=0.5, fmt='o')
-axins.set_xlim(0.9, 1.5)
-axins.set_ylim(0.70, 1.1)
-axins.hlines(1, 0.9, 1.5, color='#000')
-axins.vlines(1, 0.70, 1.1, color='#000')
-axins.hlines(0.70, 0.9, 1.5, color='#000')
-axins.hlines(1.1, 0.9, 1.5, color='#000')
-axins.vlines(0.9, 0.70, 1.1, color='#000')
-axins.vlines(1.5, 0.70, 1.1, color='#000')
-axins.set_yticks([0.70, 0.80, 0.90, 1.00])
+axins.set_xlim(0.99, 1.5)
+axins.set_ylim(0.65, 1.4)
+axins.hlines(1, 0.99, 1.5, color='#000')
+axins.vlines(1, 0.65, 1.4, color='#000')
+axins.hlines(0.65, 0.99, 1.5, color='#000')
+axins.hlines(1.4, 0.99, 1.5, color='#000')
+axins.vlines(0.99, 0.65, 1.4, color='#000')
+axins.vlines(1.5, 0.65, 1.4, color='#000')
+axins.set_yticks([0.70, 0.80, 0.90, 1.00, 1.10, 1.20, 1.30])
 
 ax.indicate_inset_zoom(axins)
 
 plt.ylabel("Performance Speedup")
 plt.xlabel("Cost Reduction")
-plt.hlines(1, 0.0, 4.5, color='#000')
+plt.hlines(1, 0.0, 4, color='#000')
 plt.vlines(1, 0.0, 6, color='#000')
-plt.xlim(0.0, 4.5)
+plt.xlim(0.0, 4)
 plt.ylim(0.0, 6)
 
 plt.savefig(GRAPHS_DIR+'/'+'heuristics-mean-pr.svg', dpi=100, 

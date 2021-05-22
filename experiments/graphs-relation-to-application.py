@@ -19,7 +19,7 @@ f = lambda m,c: plt.plot([],[],marker=m, color=c, ls="none")[0]
 
 
 # --------------------- Experiment 1 - price-
-FILE = 'results/exp1.40.json'
+FILE = 'results/exp1.json'
 with open(FILE, 'r') as fp:
     heuristics = json.load(fp)
 GRAPHS_DIR = 'graphs/exp1'
@@ -32,18 +32,20 @@ for h in price_heuristics:
     for app in heuristics[h]:
         for t in heuristics[h][app]:
             for vm in heuristics[h][app][t]:
-                app_name = (app.split('-'))[0]
-                app_thread = app_name + '-' + str(t)
-                if app_thread not in data[h]:
-                    data[h][app_thread] = {}
-                    data[h][app_thread] = {'app': app_name, 'threads': t, 
-                                            'cost': [], 'perf': []}
-                    if app_thread == 'FT-16': data[h][app_thread]['app'] = 'FT-16'
-                    if app_thread == 'FT-4': data[h][app_thread]['app'] = 'FT-4'
-                data[h][app_thread]['cost'].append(
-                                        heuristics[h][app][t][vm]['ovcost'])
-                data[h][app_thread]['perf'].append(
-                                        heuristics[h][app][t][vm]['ovperf'])
+                if heuristics[h][app][t][vm]['current']['experiment']:
+                    if vm != heuristics[h][app][t][vm]['selected']['instance']['name']:
+                        app_name = (app.split('-'))[0]
+                        app_thread = app_name + '-' + str(t)
+                        if app_thread not in data[h]:
+                            data[h][app_thread] = {}
+                            data[h][app_thread] = {'app': app_name, 'threads': t, 
+                                                    'cost': [], 'perf': []}
+                            if app_thread == 'FT-16': data[h][app_thread]['app'] = 'FT-16'
+                            if app_thread == 'FT-4': data[h][app_thread]['app'] = 'FT-4'
+                        data[h][app_thread]['cost'].append(
+                                                heuristics[h][app][t][vm]['ovcost'])
+                        data[h][app_thread]['perf'].append(
+                                                heuristics[h][app][t][vm]['ovperf'])
 
 
 markers_heuristics=["*","d",7,6]
@@ -82,16 +84,17 @@ ax = plt.gca().add_artist(lgnd)
 
 handles = [f(markers_heuristics[i], "k") for i in range(4)]
 labels = [heuristic_name[h] for h in price_heuristics]
-plt.legend(handles=handles, labels=labels, loc='lower right')
+plt.legend(handles=handles, labels=labels, loc='lower right', facecolor='white', frameon=True)
 
 for i in lgnd.legendHandles:
     i._sizes = [10]
 plt.ylabel("Performance Speedup")
 plt.xlabel("Cost Reduction")
-plt.hlines(1, 1.3, 3.5, color='#000')
-plt.vlines(1, 0.4, 1.1, color='#000')
-plt.xlim(1.3, 3.5)
-plt.xticks([1.5, 2.0, 2.5, 3.0, 3.5])
+plt.hlines(1, 0.99, 4.5, color='#000')
+plt.vlines(1, 0.3, 1.2, color='#000')
+plt.xlim(0.99, 4.3)
+plt.ylim(0.3, 1.2)
+#plt.xticks([1.5, 2.0, 2.5, 3.0, 3.5, 4.0])
 plt.savefig(GRAPHS_DIR+'/'+'exp1-application.svg', dpi=100, 
             bbox_inches='tight', format='svg', pad_inches = 0)
 plt.show()
@@ -103,7 +106,7 @@ plt.clf()
 
 # --------------------- Experiment 2 - price-
 
-FILE = 'results/exp2.40.json'
+FILE = 'results/exp2.json'
 with open(FILE, 'r') as fp:
     heuristics = json.load(fp)
 GRAPHS_DIR = 'graphs/exp2'
@@ -116,17 +119,18 @@ for h in price_heuristics:
     for app in heuristics[h]:
         for t in heuristics[h][app]:
             for vm in heuristics[h][app][t]:
-                #if vm != heuristics[h][app][t][vm]['selected']['instance']['name']:
-                    app_name = (app.split('-'))[0]
-                    app_thread = app_name
-                    if app_thread not in data[h]:
-                        data[h][app_thread] = {}
-                        data[h][app_thread] = {'app': app_name, 'threads': t, 
-                                                'cost': [], 'perf': []}
-                    data[h][app_thread]['cost'].append(
-                                            heuristics[h][app][t][vm]['ovcost'])
-                    data[h][app_thread]['perf'].append(
-                                            heuristics[h][app][t][vm]['ovperf'])
+                if heuristics[h][app][t][vm]['current']['experiment']:
+                    if vm != heuristics[h][app][t][vm]['selected']['instance']['name']:
+                        app_name = (app.split('-'))[0]
+                        app_thread = app_name
+                        if app_thread not in data[h]:
+                            data[h][app_thread] = {}
+                            data[h][app_thread] = {'app': app_name, 'threads': t, 
+                                                    'cost': [], 'perf': []}
+                        data[h][app_thread]['cost'].append(
+                                                heuristics[h][app][t][vm]['ovcost'])
+                        data[h][app_thread]['perf'].append(
+                                                heuristics[h][app][t][vm]['ovperf'])
 
 markers_heuristics=["*","d",7,6]
 alpha_heuristics=[1, 0.3, 0.3, 0.3]
@@ -154,17 +158,17 @@ ax = plt.gca().add_artist(lgnd)
 
 handles = [f(markers_heuristics[i], "k") for i in range(4)]
 labels = [heuristic_name[h] for h in price_heuristics]
-plt.legend(handles=handles, labels=labels, loc='lower right')
+plt.legend(handles=handles, labels=labels, loc='upper left', facecolor='white', frameon=True)
 
 for i in lgnd.legendHandles:
     i._sizes = [10]
 plt.ylabel("Performance Speedup")
 plt.xlabel("Cost Reduction")
-plt.hlines(1, 1.1, 1.6, color='#000')
-plt.vlines(1, 0.5, 1.1, color='#000')
-plt.xlim(1.1, 1.6)
-plt.ylim(0.5, 1.1)
-plt.xticks([1.1, 1.2, 1.3, 1.4, 1.5])
+plt.hlines(1, 0.99, 1.7, color='#000')
+plt.vlines(1, 0.5, 1.3, color='#000')
+plt.xlim(0.99, 1.7)
+plt.ylim(0.6, 1.3)
+plt.xticks([1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7])
 plt.savefig(GRAPHS_DIR+'/'+'exp2-application.svg', dpi=100,
             bbox_inches='tight', format='svg', pad_inches = 0)
 plt.show()
@@ -173,10 +177,10 @@ plt.clf()
 
 
 # --------------------- Experiment 1 - price-reason
-FILE = 'results/exp1.40.json'
+FILE = 'results/exp1.json'
 with open(FILE, 'r') as fp:
     heuristics = json.load(fp)
-GRAPHS_DIR = 'graphs/exp1'
+GRAPHS_DIR = 'graphs'
 if not os.path.exists(GRAPHS_DIR):
     os.makedirs(GRAPHS_DIR)
 
@@ -186,18 +190,20 @@ for h in pricereason_heuristics:
     for app in heuristics[h]:
         for t in heuristics[h][app]:
             for vm in heuristics[h][app][t]:
-                app_name = (app.split('-'))[0]
-                app_thread = app_name + '-' + str(t)
-                if app_thread not in data[h]:
-                    data[h][app_thread] = {}
-                    data[h][app_thread] = {'app': app_name, 'threads': t, 
-                                            'cost': [], 'perf': []}
-                    if app_thread == 'FT-16': data[h][app_thread]['app'] = 'FT-16'
-                    if app_thread == 'FT-4': data[h][app_thread]['app'] = 'FT-4'
-                data[h][app_thread]['cost'].append(
-                                        heuristics[h][app][t][vm]['ovcost'])
-                data[h][app_thread]['perf'].append(
-                                        heuristics[h][app][t][vm]['ovperf'])
+                if heuristics[h][app][t][vm]['current']['experiment']:
+                    if vm != heuristics[h][app][t][vm]['selected']['instance']['name']:
+                        app_name = (app.split('-'))[0]
+                        app_thread = app_name + '-' + str(t)
+                        if app_thread not in data[h]:
+                            data[h][app_thread] = {}
+                            data[h][app_thread] = {'app': app_name, 'threads': t, 
+                                                    'cost': [], 'perf': []}
+                            if app_thread == 'FT-16': data[h][app_thread]['app'] = 'FT-16'
+                            if app_thread == 'FT-4': data[h][app_thread]['app'] = 'FT-4'
+                        data[h][app_thread]['cost'].append(
+                                                heuristics[h][app][t][vm]['ovcost'])
+                        data[h][app_thread]['perf'].append(
+                                                heuristics[h][app][t][vm]['ovperf'])
 
 
 markers_heuristics=["*","d",7,6]
@@ -235,17 +241,17 @@ ax = plt.gca().add_artist(lgnd)
 
 handles = [f(markers_heuristics[i], "k") for i in range(4)]
 labels = [heuristic_name[h] for h in pricereason_heuristics]
-plt.legend(handles=handles, labels=labels, loc='lower right')
+plt.legend(handles=handles, labels=labels, loc='lower right', facecolor='white', frameon=True)
 
 for i in lgnd.legendHandles:
     i._sizes = [10]
 plt.ylabel("Performance Speedup")
 plt.xlabel("Cost Reduction")
-plt.hlines(1, 1, 3, color='#000')
-plt.vlines(1, 0.6, 1.1, color='#000')
-plt.xlim(1, 3)
-plt.ylim(0.6, 1.1)
-plt.xticks([1.0, 1.5, 2.0, 2.5, 3.0])
+plt.hlines(1, 0.99, 3.6, color='#000')
+plt.vlines(1, 0.3, 1.2, color='#000')
+plt.xlim(0.99, 3.6)
+plt.ylim(0.3, 1.2)
+plt.xticks([1.0, 1.5, 2.0, 2.5, 3.0, 3.5])
 plt.savefig(GRAPHS_DIR+'/'+'exp1-application-pr.svg', dpi=100, 
             bbox_inches='tight', format='svg', pad_inches = 0)
 plt.show()
@@ -257,10 +263,10 @@ plt.clf()
 
 # --------------------- Experiment 2 - price-reason
 
-FILE = 'results/exp2.40.json'
+FILE = 'results/exp2.json'
 with open(FILE, 'r') as fp:
     heuristics = json.load(fp)
-GRAPHS_DIR = 'graphs/exp2'
+GRAPHS_DIR = 'graphs'
 if not os.path.exists(GRAPHS_DIR):
     os.makedirs(GRAPHS_DIR)
 
@@ -270,17 +276,18 @@ for h in pricereason_heuristics:
     for app in heuristics[h]:
         for t in heuristics[h][app]:
             for vm in heuristics[h][app][t]:
-                #if vm != heuristics[h][app][t][vm]['selected']['instance']['name']:
-                    app_name = (app.split('-'))[0]
-                    app_thread = app_name
-                    if app_thread not in data[h]:
-                        data[h][app_thread] = {}
-                        data[h][app_thread] = {'app': app_name, 'threads': t, 
-                                                'cost': [], 'perf': []}
-                    data[h][app_thread]['cost'].append(
-                                            heuristics[h][app][t][vm]['ovcost'])
-                    data[h][app_thread]['perf'].append(
-                                            heuristics[h][app][t][vm]['ovperf'])
+                if heuristics[h][app][t][vm]['current']['experiment']:
+                    if vm != heuristics[h][app][t][vm]['selected']['instance']['name']:
+                        app_name = (app.split('-'))[0]
+                        app_thread = app_name
+                        if app_thread not in data[h]:
+                            data[h][app_thread] = {}
+                            data[h][app_thread] = {'app': app_name, 'threads': t, 
+                                                    'cost': [], 'perf': []}
+                        data[h][app_thread]['cost'].append(
+                                                heuristics[h][app][t][vm]['ovcost'])
+                        data[h][app_thread]['perf'].append(
+                                                heuristics[h][app][t][vm]['ovperf'])
 
 markers_heuristics=["*","d",7,6]
 alpha_heuristics=[1, 0.3, 0.3, 0.3]
@@ -308,17 +315,17 @@ ax = plt.gca().add_artist(lgnd)
 
 handles = [f(markers_heuristics[i], "k") for i in range(4)]
 labels = [heuristic_name[h] for h in pricereason_heuristics]
-plt.legend(handles=handles, labels=labels, loc='lower right')
+plt.legend(handles=handles, labels=labels, loc='upper left', facecolor='white', frameon=True)
 
 for i in lgnd.legendHandles:
     i._sizes = [10]
 plt.ylabel("Performance Speedup")
 plt.xlabel("Cost Reduction")
-plt.hlines(1, 1, 1.5, color='#000')
-plt.vlines(1, 0.6, 1.3, color='#000')
-plt.xlim(1, 1.5)
-plt.ylim(0.6, 1.3)
-plt.xticks([1, 1.1, 1.2, 1.3, 1.4, 1.5])
+plt.hlines(1, 0.90, 1.8, color='#000')
+plt.vlines(1, 0.6, 1.7, color='#000')
+plt.xlim(0.90, 1.7)
+plt.ylim(0.6, 1.7)
+plt.xticks([0.9, 1.0, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7])
 plt.savefig(GRAPHS_DIR+'/'+'exp2-application-pr.svg', dpi=100,
             bbox_inches='tight', format='svg', pad_inches = 0)
 plt.show()

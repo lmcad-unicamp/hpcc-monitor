@@ -7,14 +7,14 @@ with open(FILE, 'r') as fp:
 
 
 print("==============================TABELAS PARA BT-1======================")
-print("==============================PRICE======================")
+print("==============================PRICE-REASON======================")
 print("==============================EXPERIMENT 1======================")
 threads_column = False
 utilization_column = True 
 APPLICATION = 'BT'
 THREAD = '4'
 VM = {}
-for heuristic in price_heuristics:
+for heuristic in pricereason_heuristics:
     for vm in heuristics[heuristic][APPLICATION][THREAD]:
         if heuristics[heuristic][APPLICATION][THREAD][vm]['current']['experiment']:
             if vm not in VM:
@@ -27,7 +27,7 @@ for vm in sortedbyvcpu:
         sortedbyvcpu_filtered.append(vm)
 
 data = {}
-for heuristic in price_heuristics:
+for heuristic in pricereason_heuristics:
     data[heuristic] = {}
     data[heuristic]['perf'] = []
     data[heuristic]['cost'] = []
@@ -38,10 +38,10 @@ for heuristic in price_heuristics:
 
 
 # Table no1 - seletion in each execution
-vcpus_border= min([t for t in heuristics['vcpu']])
+vcpus_border= min([t for t in heuristics['vcpu-pricereason']])
 print("\n\n")
 for vm in sortedbyvcpu_filtered:
-    border = VM[vm]['vcpu']['current']['instance']['vcpu']
+    border = VM[vm]['vcpu-pricereason']['current']['instance']['vcpu']
     if vcpus_border != border:
         print('\\Xhline{5\\arrayrulewidth}')
     else:
@@ -51,15 +51,15 @@ for vm in sortedbyvcpu_filtered:
     st += '\\instance{'+ INSTANCES[vm]['subname'] +'}' + ' & '
     st += str(INSTANCES[vm]['vcpu']) + ' & '
     st += str(INSTANCES[vm]['cpu']) + ' & '
-    st += str(round(INSTANCES[vm]['price'],2)) + ' & '
-    st += str(int(VM[vm]['vcpu']['current']['utilization']*100)) + '\% & '
+    st += str(round(INSTANCES[vm]['pricereason'],2)) + ' & '
+    st += str(int(VM[vm]['vcpu-pricereason']['current']['utilization']*100)) + '\% & '
 
-    for h in price_heuristics:
+    for h in pricereason_heuristics:
         if VM[vm][h]['selected']['instance']['name'] == vm:
             st += '\\textcolor{gray}{\\instance{'+ VM[vm][h]['selected']['instance']['subname'] +'}}'
         else:
             st += '\\instance{'+ VM[vm][h]['selected']['instance']['subname']+'}'
-        if h != 'topdown':
+        if h != 'topdown-pricereason':
             st+= '&'
     
     st += '\\\\'
@@ -70,7 +70,7 @@ print("\n\n")
 vcpus_border= min([t for t in heuristics['vcpu']])
 maxvalue=11
 for vm in sortedbyvcpu_filtered:
-    border = VM[vm]['vcpu']['current']['instance']['vcpu']
+    border = VM[vm]['vcpu-pricereason']['current']['instance']['vcpu']
     if vcpus_border != border:
         print('\\Xhline{5\\arrayrulewidth}')
     else:
@@ -78,7 +78,7 @@ for vm in sortedbyvcpu_filtered:
     vcpus_border = border
     st = ''
     st += '\\instance{'+ INSTANCES[vm]['subname'] +'}' + ' & '   
-    for h in price_heuristics:
+    for h in pricereason_heuristics:
         if VM[vm][h]['selected']['instance']['name'] == vm:
             st += ' & ' 
         else:
@@ -95,14 +95,14 @@ for vm in sortedbyvcpu_filtered:
             elif cost < 1.00:
                 st += '\\cellcolor{redgradient!'+ str(int((1.00-cost)*100)) +'}' 
             st += str(cost)
-        if h != 'topdown':
+        if h != 'topdown-pricereason':
             st+= '&'
     st += '\\\\'
     print(st)
 
 print('\\Xhline{5\\arrayrulewidth}')
 st = '\\shortstack{\\footnotesize{geometric}\\\\ \\footnotesize{mean}} &'
-for h in price_heuristics:
+for h in pricereason_heuristics:
     perf = round(scipy.stats.mstats.gmean(data[h]['perf']),2)
     if perf > 1.00:
         st += '\\cellcolor{greengradient!'+ str(int((perf-1.00)*100/(maxvalue-1.00))) +'}' 
@@ -116,20 +116,19 @@ for h in price_heuristics:
     elif cost < 1.00:
         st += '\\cellcolor{redgradient!'+ str(int((1.00-cost)*100)) +'}' 
     st += str(cost)
-    if price_heuristics and h != 'topdown':
+    if pricereason_heuristics and h != 'topdown-pricereason':
         st+= '&'
 st += '\\\\'
 print(st)
 print("\n\n")
 
-
 print("==============================TABELAS PARA FT-1======================")
-print("==============================PRICE======================")
+print("==============================PRICE-REASON======================")
 print("==============================EXPERIMENT 1======================")
 APPLICATION = 'FT'
 THREADS = '4'
 VM = {}
-for heuristic in price_heuristics:
+for heuristic in pricereason_heuristics:
     for vm in heuristics[heuristic][APPLICATION][THREADS]:
         if heuristics[heuristic][APPLICATION][THREADS][vm]['current']['experiment']:
             if vm not in VM:
@@ -143,10 +142,10 @@ for vm in sortedbyvcpu:
         sortedbyvcpu_filtered.append(vm)
 
 # Table no1 - seletion in each execution
-vcpus_border= min([t for t in heuristics['vcpu']])
+vcpus_border= min([t for t in heuristics['vcpu-pricereason']])
 print("\n\n")
 for vm in sortedbyvcpu_filtered:
-    border = VM[vm]['vcpu']['current']['instance']['vcpu']
+    border = VM[vm]['vcpu-pricereason']['current']['instance']['vcpu']
     if vcpus_border != border:
         print('\\Xhline{4\\arrayrulewidth}')
     else:
@@ -156,15 +155,15 @@ for vm in sortedbyvcpu_filtered:
     st += '\\instance{'+ INSTANCES[vm]['subname'] +'}' + ' & '
     st += str(INSTANCES[vm]['vcpu']) + ' & '
     st += str(INSTANCES[vm]['cpu']) + ' & '
-    st += str(round(INSTANCES[vm]['price'],2)) + ' & '
-    st += str(int(VM[vm]['vcpu']['current']['threads'])) + ' & '
+    st += str(round(INSTANCES[vm]['pricereason'],3)) + ' & '
+    st += str(int(VM[vm]['vcpu-pricereason']['current']['utilization']*100)) + '\% & '
 
-    for h in price_heuristics:
+    for h in pricereason_heuristics:
         if VM[vm][h]['selected']['instance']['name'] == vm:
             st += '\\textcolor{gray}{\\instance{'+ VM[vm][h]['selected']['instance']['subname'] +'}}'
         else:
             st += '\\instance{'+ VM[vm][h]['selected']['instance']['subname']+'}'
-        if h != 'topdown':
+        if h != 'topdown-pricereason':
             st+= '&'
     
     st += '\\\\'
@@ -173,7 +172,7 @@ print("\n\n")
 
 THREADS = '16'
 VM = {}
-for heuristic in price_heuristics:
+for heuristic in pricereason_heuristics:
     for vm in heuristics[heuristic][APPLICATION][THREADS]:
         if heuristics[heuristic][APPLICATION][THREADS][vm]['current']['experiment']:
             if vm not in VM:
@@ -186,10 +185,10 @@ for vm in sortedbyvcpu:
         sortedbyvcpu_filtered.append(vm)
 
 # Table no1 - seletion in each execution
-vcpus_border= min([t for t in heuristics['vcpu']])
+vcpus_border= min([t for t in heuristics['vcpu-pricereason']])
 print("\n\n")
 for vm in sortedbyvcpu_filtered:
-    border = VM[vm]['vcpu']['current']['instance']['vcpu']
+    border = VM[vm]['vcpu-pricereason']['current']['instance']['vcpu']
     if vcpus_border != border:
         print('\\Xhline{4\\arrayrulewidth}')
     else:
@@ -199,19 +198,21 @@ for vm in sortedbyvcpu_filtered:
     st += '\\instance{'+ INSTANCES[vm]['subname'] +'}' + ' & '
     st += str(INSTANCES[vm]['vcpu']) + ' & '
     st += str(INSTANCES[vm]['cpu']) + ' & '
-    st += str(round(INSTANCES[vm]['price'],2)) + ' & '
-    st += str(int(VM[vm]['vcpu']['current']['threads'])) + ' & '
+    st += str(round(INSTANCES[vm]['pricereason'],3)) + ' & '
+    st += str(int(VM[vm]['vcpu-pricereason']['current']['utilization']*100)) + '\% & '
 
-    for h in price_heuristics:
+    for h in pricereason_heuristics:
         if VM[vm][h]['selected']['instance']['name'] == vm:
             st += '\\textcolor{gray}{\\instance{'+ VM[vm][h]['selected']['instance']['subname'] +'}}'
         else:
             st += '\\instance{'+ VM[vm][h]['selected']['instance']['subname']+'}'
-        if h != 'topdown':
+        if h != 'topdown-pricereason':
             st+= '&'    
     st += '\\\\'
     print(st)
 print("\n\n")
+
+
 
 
 
@@ -220,13 +221,13 @@ with open(FILE, 'r') as fp:
     heuristics = json.load(fp)
 
 print("==============================TABELAS PARA BT-1======================")
-print("==============================PRICE======================")
+print("==============================PRICE-REASON======================")
 print("==============================EXPERIMENT 2======================")
 threads_column = False
 utilization_column = True 
 APPLICATION = 'BT'
 VM = {}
-for heuristic in price_heuristics:
+for heuristic in pricereason_heuristics:
     for t in heuristics[heuristic][APPLICATION]:
         for vm in heuristics[heuristic][APPLICATION][t]:
             if heuristics[heuristic][APPLICATION][t][vm]['current']['experiment']:
@@ -240,7 +241,7 @@ for vm in sortedbyvcpu:
         sortedbyvcpu_filtered.append(vm)
 
 data = {}
-for heuristic in price_heuristics:
+for heuristic in pricereason_heuristics:
     data[heuristic] = {}
     data[heuristic]['perf'] = []
     data[heuristic]['cost'] = []
@@ -252,10 +253,10 @@ for heuristic in price_heuristics:
 
 
 # Table no1 - seletion in each execution
-vcpus_border= min([t for t in heuristics['vcpu']])
+vcpus_border= min([t for t in heuristics['vcpu-pricereason']])
 print("\n\n")
 for vm in sortedbyvcpu_filtered:
-    border = VM[vm]['vcpu']['current']['instance']['vcpu']
+    border = VM[vm]['vcpu-pricereason']['current']['instance']['vcpu']
     if vcpus_border != border:
         print('\\Xhline{5\\arrayrulewidth}')
     else:
@@ -265,15 +266,15 @@ for vm in sortedbyvcpu_filtered:
     st += '\\instance{'+ INSTANCES[vm]['subname'] +'}' + ' & '
     st += str(INSTANCES[vm]['vcpu']) + ' & '
     st += str(INSTANCES[vm]['cpu']) + ' & '
-    st += str(round(INSTANCES[vm]['price'],2)) + ' & '
-    st += str(int(VM[vm]['vcpu']['current']['threads'])) + '\% & '
+    st += str(round(INSTANCES[vm]['pricereason'],3)) + ' & '
+    st += str(int(VM[vm]['vcpu-pricereason']['current']['threads'])) + ' & '
 
-    for h in price_heuristics:
+    for h in pricereason_heuristics:
         if VM[vm][h]['selected']['instance']['name'] == vm:
             st += '\\textcolor{gray}{\\instance{'+ VM[vm][h]['selected']['instance']['subname'] +'}}'
         else:
             st += '\\instance{'+ VM[vm][h]['selected']['instance']['subname']+'}'
-        if h != 'topdown':
+        if h != 'topdown-pricereason':
             st+= '&'
     
     st += '\\\\'
@@ -284,7 +285,7 @@ print("\n\n")
 vcpus_border= min([t for t in heuristics['vcpu']])
 maxvalue=11
 for vm in sortedbyvcpu_filtered:
-    border = VM[vm]['vcpu']['current']['instance']['vcpu']
+    border = VM[vm]['vcpu-pricereason']['current']['instance']['vcpu']
     if vcpus_border != border:
         print('\\Xhline{5\\arrayrulewidth}')
     else:
@@ -292,7 +293,7 @@ for vm in sortedbyvcpu_filtered:
     vcpus_border = border
     st = ''
     st += '\\instance{'+ INSTANCES[vm]['subname'] +'}' + ' & '   
-    for h in price_heuristics:
+    for h in pricereason_heuristics:
         if VM[vm][h]['selected']['instance']['name'] == vm:
             st += ' & ' 
         else:
@@ -309,14 +310,14 @@ for vm in sortedbyvcpu_filtered:
             elif cost < 1.00:
                 st += '\\cellcolor{redgradient!'+ str(int((1.00-cost)*100)) +'}' 
             st += str(cost)
-        if h != 'topdown':
+        if h != 'topdown-pricereason':
             st+= '&'
     st += '\\\\'
     print(st)
 
 print('\\Xhline{5\\arrayrulewidth}')
 st = '\\shortstack{\\footnotesize{geometric}\\\\ \\footnotesize{mean}} &'
-for h in price_heuristics:
+for h in pricereason_heuristics:
     perf = round(scipy.stats.mstats.gmean(data[h]['perf']),2)
     if perf > 1.00:
         st += '\\cellcolor{greengradient!'+ str(int((perf-1.00)*100/(maxvalue-1.00))) +'}' 
@@ -330,19 +331,20 @@ for h in price_heuristics:
     elif cost < 1.00:
         st += '\\cellcolor{redgradient!'+ str(int((1.00-cost)*100)) +'}' 
     st += str(cost)
-    if price_heuristics and h != 'topdown':
+    if pricereason_heuristics and h != 'topdown-pricereason':
         st+= '&'
 st += '\\\\'
 print(st)
 print("\n\n")
+
 print("==============================TABELAS PARA LU-1======================")
-print("==============================PRICE======================")
+print("==============================PRICE-REASON======================")
 print("==============================EXPERIMENT 2======================")
 threads_column = False
 utilization_column = True 
 APPLICATION = 'LU'
 VM = {}
-for heuristic in price_heuristics:
+for heuristic in pricereason_heuristics:
     for t in heuristics[heuristic][APPLICATION]:
         for vm in heuristics[heuristic][APPLICATION][t]:
             if heuristics[heuristic][APPLICATION][t][vm]['current']['experiment']:
@@ -356,22 +358,21 @@ for vm in sortedbyvcpu:
         sortedbyvcpu_filtered.append(vm)
 
 data = {}
-for heuristic in price_heuristics:
+for heuristic in pricereason_heuristics:
     data[heuristic] = {}
     data[heuristic]['perf'] = []
     data[heuristic]['cost'] = []
     for t in heuristics[heuristic][APPLICATION]:
         for vm in heuristics[heuristic][APPLICATION][t]:
-            if vm != heuristics[heuristic][APPLICATION][t][vm]['selected']['instance']['name']:
-                data[heuristic]['perf'].append(heuristics[heuristic][APPLICATION][t][vm]['ovperf'])
-                data[heuristic]['cost'].append(heuristics[heuristic][APPLICATION][t][vm]['ovcost'])
+            data[heuristic]['perf'].append(heuristics[heuristic][APPLICATION][t][vm]['ovperf'])
+            data[heuristic]['cost'].append(heuristics[heuristic][APPLICATION][t][vm]['ovcost'])
 
 
 # Table no1 - seletion in each execution
-vcpus_border= min([t for t in heuristics['vcpu']])
+vcpus_border= min([t for t in heuristics['vcpu-pricereason']])
 print("\n\n")
 for vm in sortedbyvcpu_filtered:
-    border = VM[vm]['vcpu']['current']['instance']['vcpu']
+    border = VM[vm]['vcpu-pricereason']['current']['instance']['vcpu']
     if vcpus_border != border:
         print('\\Xhline{5\\arrayrulewidth}')
     else:
@@ -381,15 +382,15 @@ for vm in sortedbyvcpu_filtered:
     st += '\\instance{'+ INSTANCES[vm]['subname'] +'}' + ' & '
     st += str(INSTANCES[vm]['vcpu']) + ' & '
     st += str(INSTANCES[vm]['cpu']) + ' & '
-    st += str(round(INSTANCES[vm]['price'],2)) + ' & '
-    st += str(int(VM[vm]['vcpu']['current']['threads'])) + ' & '
+    st += str(round(INSTANCES[vm]['pricereason'],3)) + ' & '
+    st += str(int(VM[vm]['vcpu-pricereason']['current']['threads'])) + ' & '
 
-    for h in price_heuristics:
+    for h in pricereason_heuristics:
         if VM[vm][h]['selected']['instance']['name'] == vm:
             st += '\\textcolor{gray}{\\instance{'+ VM[vm][h]['selected']['instance']['subname'] +'}}'
         else:
             st += '\\instance{'+ VM[vm][h]['selected']['instance']['subname']+'}'
-        if h != 'topdown':
+        if h != 'topdown-pricereason':
             st+= '&'
     
     st += '\\\\'
@@ -400,7 +401,7 @@ print("\n\n")
 vcpus_border= min([t for t in heuristics['vcpu']])
 maxvalue=11
 for vm in sortedbyvcpu_filtered:
-    border = VM[vm]['vcpu']['current']['instance']['vcpu']
+    border = VM[vm]['vcpu-pricereason']['current']['instance']['vcpu']
     if vcpus_border != border:
         print('\\Xhline{5\\arrayrulewidth}')
     else:
@@ -408,7 +409,7 @@ for vm in sortedbyvcpu_filtered:
     vcpus_border = border
     st = ''
     st += '\\instance{'+ INSTANCES[vm]['subname'] +'}' + ' & '   
-    for h in price_heuristics:
+    for h in pricereason_heuristics:
         if VM[vm][h]['selected']['instance']['name'] == vm:
             st += ' & ' 
         else:
@@ -425,14 +426,14 @@ for vm in sortedbyvcpu_filtered:
             elif cost < 1.00:
                 st += '\\cellcolor{redgradient!'+ str(int((1.00-cost)*100)) +'}' 
             st += str(cost)
-        if h != 'topdown':
+        if h != 'topdown-pricereason':
             st+= '&'
     st += '\\\\'
     print(st)
 
 print('\\Xhline{5\\arrayrulewidth}')
 st = '\\shortstack{\\footnotesize{geometric}\\\\ \\footnotesize{mean}} &'
-for h in price_heuristics:
+for h in pricereason_heuristics:
     perf = round(scipy.stats.mstats.gmean(data[h]['perf']),2)
     if perf > 1.00:
         st += '\\cellcolor{greengradient!'+ str(int((perf-1.00)*100/(maxvalue-1.00))) +'}' 
@@ -446,7 +447,7 @@ for h in price_heuristics:
     elif cost < 1.00:
         st += '\\cellcolor{redgradient!'+ str(int((1.00-cost)*100)) +'}' 
     st += str(cost)
-    if price_heuristics and h != 'topdown':
+    if pricereason_heuristics and h != 'topdown-pricereason':
         st+= '&'
 st += '\\\\'
 print(st)
@@ -454,13 +455,13 @@ print("\n\n")
 
 
 print("==============================TABELAS PARA FT-1======================")
-print("==============================PRICE======================")
+print("==============================PRICE-REASON======================")
 print("==============================EXPERIMENT 2======================")
 threads_column = False
 utilization_column = True 
 APPLICATION = 'FT'
 VM = {}
-for heuristic in price_heuristics:
+for heuristic in pricereason_heuristics:
     for t in heuristics[heuristic][APPLICATION]:
         for vm in heuristics[heuristic][APPLICATION][t]:
             if heuristics[heuristic][APPLICATION][t][vm]['current']['experiment']:
@@ -474,22 +475,21 @@ for vm in sortedbyvcpu:
         sortedbyvcpu_filtered.append(vm)
 
 data = {}
-for heuristic in price_heuristics:
+for heuristic in pricereason_heuristics:
     data[heuristic] = {}
     data[heuristic]['perf'] = []
     data[heuristic]['cost'] = []
     for t in heuristics[heuristic][APPLICATION]:
         for vm in heuristics[heuristic][APPLICATION][t]:
-            if vm != heuristics[heuristic][APPLICATION][t][vm]['selected']['instance']['name']:
-                data[heuristic]['perf'].append(heuristics[heuristic][APPLICATION][t][vm]['ovperf'])
-                data[heuristic]['cost'].append(heuristics[heuristic][APPLICATION][t][vm]['ovcost'])
+            data[heuristic]['perf'].append(heuristics[heuristic][APPLICATION][t][vm]['ovperf'])
+            data[heuristic]['cost'].append(heuristics[heuristic][APPLICATION][t][vm]['ovcost'])
 
 
 # Table no1 - seletion in each execution
-vcpus_border= min([t for t in heuristics['vcpu']])
+vcpus_border= min([t for t in heuristics['vcpu-pricereason']])
 print("\n\n")
 for vm in sortedbyvcpu_filtered:
-    border = VM[vm]['vcpu']['current']['instance']['vcpu']
+    border = VM[vm]['vcpu-pricereason']['current']['instance']['vcpu']
     if vcpus_border != border:
         print('\\Xhline{5\\arrayrulewidth}')
     else:
@@ -499,15 +499,15 @@ for vm in sortedbyvcpu_filtered:
     st += '\\instance{'+ INSTANCES[vm]['subname'] +'}' + ' & '
     st += str(INSTANCES[vm]['vcpu']) + ' & '
     st += str(INSTANCES[vm]['cpu']) + ' & '
-    st += str(round(INSTANCES[vm]['price'],2)) + ' & '
-    st += str(int(VM[vm]['vcpu']['current']['threads'])) + ' & '
+    st += str(round(INSTANCES[vm]['pricereason'],3)) + ' & '
+    st += str(int(VM[vm]['vcpu-pricereason']['current']['threads'])) + ' & '
 
-    for h in price_heuristics:
+    for h in pricereason_heuristics:
         if VM[vm][h]['selected']['instance']['name'] == vm:
             st += '\\textcolor{gray}{\\instance{'+ VM[vm][h]['selected']['instance']['subname'] +'}}'
         else:
             st += '\\instance{'+ VM[vm][h]['selected']['instance']['subname']+'}'
-        if h != 'topdown':
+        if h != 'topdown-pricereason':
             st+= '&'
     
     st += '\\\\'
@@ -518,7 +518,7 @@ print("\n\n")
 vcpus_border= min([t for t in heuristics['vcpu']])
 maxvalue=11
 for vm in sortedbyvcpu_filtered:
-    border = VM[vm]['vcpu']['current']['instance']['vcpu']
+    border = VM[vm]['vcpu-pricereason']['current']['instance']['vcpu']
     if vcpus_border != border:
         print('\\Xhline{5\\arrayrulewidth}')
     else:
@@ -526,7 +526,7 @@ for vm in sortedbyvcpu_filtered:
     vcpus_border = border
     st = ''
     st += '\\instance{'+ INSTANCES[vm]['subname'] +'}' + ' & '   
-    for h in price_heuristics:
+    for h in pricereason_heuristics:
         if VM[vm][h]['selected']['instance']['name'] == vm:
             st += ' & ' 
         else:
@@ -543,14 +543,14 @@ for vm in sortedbyvcpu_filtered:
             elif cost < 1.00:
                 st += '\\cellcolor{redgradient!'+ str(int((1.00-cost)*100)) +'}' 
             st += str(cost)
-        if h != 'topdown':
+        if h != 'topdown-pricereason':
             st+= '&'
     st += '\\\\'
     print(st)
 
 print('\\Xhline{5\\arrayrulewidth}')
 st = '\\shortstack{\\footnotesize{geometric}\\\\ \\footnotesize{mean}} &'
-for h in price_heuristics:
+for h in pricereason_heuristics:
     perf = round(scipy.stats.mstats.gmean(data[h]['perf']),2)
     if perf > 1.00:
         st += '\\cellcolor{greengradient!'+ str(int((perf-1.00)*100/(maxvalue-1.00))) +'}' 
@@ -564,8 +564,9 @@ for h in price_heuristics:
     elif cost < 1.00:
         st += '\\cellcolor{redgradient!'+ str(int((1.00-cost)*100)) +'}' 
     st += str(cost)
-    if price_heuristics and h != 'topdown':
+    if pricereason_heuristics and h != 'topdown-pricereason':
         st+= '&'
 st += '\\\\'
 print(st)
 print("\n\n")
+exit()

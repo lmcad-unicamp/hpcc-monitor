@@ -10,22 +10,37 @@ APP = ['BT-1', 'LU-1', 'SP-1', 'FT-1', 'CG-1', 'IS-1',
         'BT-2', 'LU-2', 'SP-2', 'FT-2', 'CG-2', 'IS-2',
         'BT-3', 'LU-3', 'SP-3', 'FT-3', 'CG-3', 'IS-3',
         'EP-1', 'EP-2', 'EP-3']
-
+#APP = ['FT-1']
 pricereason_exp = True
 price_exp = True
+
+#######################################
+# CONSERVATIVE flag if execute the heuristics with conservative criteria
+# EXPERIMENTS_FILE the name of the file with the results
+# In the for, comment the experiment you do not want in the result file
+# Exp1: exp1.json, Exp2: exp2.json, both: exp.json
+# Without conservatism:
+# Exp1: exp1.nocons.json, Exp2: exp2.nocons.json, both: exp.nocons.json
+#######################################
+CONSERVATIVE = True
 home = os.path.dirname(os.path.realpath(__file__))
 EXPERIMENTS_DIR = home + "/results"
-EXPERIMENTS_FILE = EXPERIMENTS_DIR + "/" + "exp2.40.json"
+EXPERIMENTS_FILE = EXPERIMENTS_DIR + "/" + "exp.json"
 if not os.path.exists(EXPERIMENTS_DIR):
     os.makedirs(EXPERIMENTS_DIR)
+
 DIR = {}
 for i in APP:
     DIR[i] = {}
-    #DIR[i]['experiment4'] = 'limited-threads/4/'+i+'/'
-    #DIR[i]['experiment16'] = 'limited-threads/16/'+i+'/'
+    DIR[i]['experiment4'] = 'limited-threads/4/'+i+'/'
+    DIR[i]['experiment16'] = 'limited-threads/16/'+i+'/'
     DIR[i]['experiments'] = 'unlimited-threads/experiments/'+i+'/'
     DIR[i]['selections'] = 'unlimited-threads/selections/'+i+'/'
 
+intel = ['c5n9xlarge', 'r512xlarge', 'c512xlarge', 'r5n12xlarge', 'i32xlarge',
+        'r5xlarge', 'r52xlarge', 't32xlarge', 'r5n8xlarge', 'r58xlarge',
+        'c5n4xlarge', 'i34xlarge', 'c54xlarge', 'r54xlarge', 'c59xlarge']
+amd = ['r5a2xlarge', 'c5a8xlarge', 'r5axlarge', 'r5a8xlarge', 'c5a4xlarge']
 
 INSTANCES = {'r5xlarge' : {'name': 'r5xlarge', 'dotname': 'r5.xlarge', 'subname': 'r5.x', 'vcpu': 4, 'cpu': 2, 'mem': 32, 'price': 0.25},
             'r52xlarge' : {'name': 'r52xlarge', 'dotname': 'r5.2xlarge', 'subname': 'r5.2x', 'vcpu': 8, 'cpu': 4, 'mem': 64, 'price': 0.50},
@@ -143,7 +158,10 @@ if __name__ == '__main__':
             if selected == current:
                 return current, True
             # If the price of the selected is lower than the current
-            if INSTANCES[selected][compare_type] < INSTANCES[current][compare_type]:
+            if CONSERVATIVE:
+                if INSTANCES[selected][compare_type] < INSTANCES[current][compare_type]:
+                    return selected, True
+            else:
                 return selected, True
         # If no cheaper instance has been found
         return current, False
@@ -154,7 +172,6 @@ if __name__ == '__main__':
         heuristics[h][app][threads][vm] = {}
         heuristic = heuristics[h][app][threads][vm]
         this = EXP[app][threads]
-
         heuristic['selected'] = {}
         heuristic['selected']['same'] = False
         if selected == vm:
@@ -189,9 +206,10 @@ if __name__ == '__main__':
     paramount_iteration_lower_than()
 
     for app in APP:
+        app_ = app.split('-')[0]
         EXP[app] = {}
-        ALL_EXP[app] = []
-        BETTER[app] = {}
+        ALL_EXP[app_] = []
+        BETTER[app_] = {}
         for dir in DIR[app]:
             experiment = False 
             if dir[0:10] == 'experiment':
@@ -203,11 +221,13 @@ if __name__ == '__main__':
                         fileattr = file.split('.')
                         instancename = fileattr[0]
                         numthreads = int(fileattr[3])
-                        if instancename not in ALL_EXP[app]:
-                            ALL_EXP[app].append(instancename)
+                        if instancename not in ALL_EXP[app_]:
+                            ALL_EXP[app_].append(instancename)
                         # Get information about the experiment
                         if numthreads not in EXP[app]:
                             EXP[app][numthreads] = {}
+                        if instancename in EXP[app][numthreads]:
+                            continue
                         EXP[app][numthreads][instancename] = {}
                         this = EXP[app][numthreads][instancename]
                         this['threads'] = numthreads
@@ -220,43 +240,84 @@ if __name__ == '__main__':
                         this['instance'] = INSTANCES[instancename]
                         this['experiment'] = experiment
                         # Select the better instance in the experiment
-                        if numthreads not in BETTER[app]:
-                            BETTER[app][numthreads] = {}
-                            BETTER[app][numthreads]['pi'] = pi
-                            BETTER[app][numthreads]['pii'] = instancename
-                            BETTER[app][numthreads]['picost'] = cost
-                            BETTER[app][numthreads]['cost'] = cost
-                            BETTER[app][numthreads]['costi'] = instancename
-                            BETTER[app][numthreads]['costpi'] = pi
+                        if numthreads not in BETTER[app_]:
+                            BETTER[app_][numthreads] = {}
+                            BETTER[app_][numthreads]['pi'] = pi
+                            BETTER[app_][numthreads]['pii'] = instancename
+                            BETTER[app_][numthreads]['picost'] = cost
+                            BETTER[app_][numthreads]['cost'] = cost
+                            BETTER[app_][numthreads]['costi'] = instancename
+                            BETTER[app_][numthreads]['costpi'] = pi
                         else:
-                            if BETTER[app][numthreads]['pi'] > pi:
-                                BETTER[app][numthreads]['pi'] = pi
-                                BETTER[app][numthreads]['pii'] = instancename
-                                BETTER[app][numthreads]['picost'] = cost
-                            if BETTER[app][numthreads]['cost'] > cost:
-                                BETTER[app][numthreads]['cost'] = cost
-                                BETTER[app][numthreads]['costi'] = instancename
-                                BETTER[app][numthreads]['costpi'] = pi
+                            if BETTER[app_][numthreads]['pi'] > pi:
+                                BETTER[app_][numthreads]['pi'] = pi
+                                BETTER[app_][numthreads]['pii'] = instancename
+                                BETTER[app_][numthreads]['picost'] = cost
+                            if BETTER[app_][numthreads]['cost'] > cost:
+                                BETTER[app_][numthreads]['cost'] = cost
+                                BETTER[app_][numthreads]['costi'] = instancename
+                                BETTER[app_][numthreads]['costpi'] = pi
                         
                         # Select the better instance in all executions
-                        if 'global' not in BETTER[app]:
-                            BETTER[app]['global'] = {}
-                            BETTER[app]['global']['pi'] = pi
-                            BETTER[app]['global']['pii'] = instancename
-                            BETTER[app]['global']['picost'] = cost
-                            BETTER[app]['global']['cost'] = cost
-                            BETTER[app]['global']['costi'] = instancename
-                            BETTER[app]['global']['costpi'] = pi
+                        if 'global' not in BETTER[app_]:
+                            BETTER[app_]['global'] = {}
+                            BETTER[app_]['global']['pi'] = pi
+                            BETTER[app_]['global']['pii'] = instancename
+                            BETTER[app_]['global']['picost'] = cost
+                            BETTER[app_]['global']['cost'] = cost
+                            BETTER[app_]['global']['costi'] = instancename
+                            BETTER[app_]['global']['costpi'] = pi
                         else:
-                            if BETTER[app]['global']['pi'] > pi:
-                                BETTER[app]['global']['pi'] = pi
-                                BETTER[app]['global']['pii'] = instancename
-                                BETTER[app]['global']['picost'] = cost
-                            if BETTER[app]['global']['cost'] > cost:
-                                BETTER[app]['global']['cost'] = cost
-                                BETTER[app]['global']['costi'] = instancename
-                                BETTER[app]['global']['costpi'] = pi
-
+                            if BETTER[app_]['global']['pi'] > pi:
+                                BETTER[app_]['global']['pi'] = pi
+                                BETTER[app_]['global']['pii'] = instancename
+                                BETTER[app_]['global']['picost'] = cost
+                            if BETTER[app_]['global']['cost'] > cost:
+                                BETTER[app_]['global']['cost'] = cost
+                                BETTER[app_]['global']['costi'] = instancename
+                                BETTER[app_]['global']['costpi'] = pi
+    for app in EXP:
+        for t in EXP[app]:
+            for i in EXP[app][t]:
+                print(i)        
+    for app in EXP:
+        for t in EXP[app]:
+            for i in EXP[app][t]:
+                print(EXP[app][t][i]['pi'])
+    pprint(EXP)
+    EXP_ = {}
+    for app in EXP:
+        app_ = app.split('-')[0]
+        if app_ not in EXP_: EXP_[app_] = {}
+        for t in EXP[app]:
+            if t not in EXP_[app_]: EXP_[app_][t] = {}
+            for vm in EXP[app][t]:
+                if vm not in EXP_[app_][t]:
+                    EXP_[app_][t][vm] = {}
+                    EXP_[app_][t][vm]['cost'] = []
+                    EXP_[app_][t][vm]['pi'] = []
+                    EXP_[app_][t][vm]['instance'] = EXP[app][t][vm]['instance']
+                    EXP_[app_][t][vm]['experiment'] = EXP[app][t][vm]['experiment']
+                    EXP_[app_][t][vm]['threads'] = EXP[app][t][vm]['threads']
+                    EXP_[app_][t][vm]['utilization'] = EXP[app][t][vm]['utilization']
+                EXP_[app_][t][vm]['cost'].append(EXP[app][t][vm]['cost'])
+                EXP_[app_][t][vm]['pi'].append(EXP[app][t][vm]['pi'])
+                
+    for app_ in EXP_:
+        for t in EXP_[app_]:
+            for vm in EXP_[app_][t]:
+                if len(EXP_[app_][t][vm]['cost']) != 3:
+                    print("ERRO!", app_, t, vm, 'cost')
+                if len(EXP_[app_][t][vm]['pi']) != 3:
+                    print("ERRO!", app, t, vm, 'pi')
+                EXP_[app_][t][vm]['costv'] = EXP_[app_][t][vm]['cost']
+                EXP_[app_][t][vm]['cost'] = \
+                    sum(EXP_[app_][t][vm]['cost'])/len(EXP_[app_][t][vm]['cost'])
+                EXP_[app_][t][vm]['piv'] = EXP_[app_][t][vm]['pi']
+                EXP_[app_][t][vm]['pi'] = \
+                    sum(EXP_[app_][t][vm]['pi'])/len(EXP_[app_][t][vm]['pi'])
+    EXP = EXP_
+    for app in EXP:
         if price_exp:
             # vCPU-heuristic
             print("vCPU-heuristic")
@@ -351,6 +412,5 @@ if __name__ == '__main__':
                     selected, found = heuristic_algorithm(vm, minvcpus, maxvcpus, app, compare_type='pricereason')
 
                     calculate_overheads('topdown-pricereason', threads, app, vm, selected)
-
 
     (open(EXPERIMENTS_FILE, 'w+')).write(json.dumps(heuristics))
