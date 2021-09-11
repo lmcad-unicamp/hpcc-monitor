@@ -182,6 +182,14 @@ plt.xlabel('time [min]')
 #plt.legend()
 plt.yticks([0,10,25,50,75,85,90,100])
 plt.xticks(samples_ticks)
+plt.annotate('a', xy=(147, 90),  xycoords='data',
+            xytext=(120, 96), textcoords='data',
+            arrowprops=dict(facecolor='black', width=1, headlength=6, headwidth=7),
+            horizontalalignment='right', verticalalignment='top')
+plt.annotate('b', xy=(362, 90),  xycoords='data',
+            xytext=(396, 96), textcoords='data',
+            arrowprops=dict(facecolor='black', width=1, headlength=6, headwidth=7),
+            horizontalalignment='right', verticalalignment='top')
 plt.savefig(FILE_NAME+'-utilization.svg', dpi=100,
             bbox_inches='tight', format='svg', pad_inches = 0)
 plt.show()
@@ -199,7 +207,7 @@ plt.plot(arbitrarywastage['low'], color='#ff4aae', linestyle='solid', label='low
 plt.plot(arbitrarywastage['idle'], color='#246dff', linestyle='solid', label='idle')
 #plt.plot(wastagereset['idle'], color='red', linestyle='dashed', label='idle-reset')
 plt.plot(arbitrarywastage['total'], color='#5bf069', linestyle='solid', label='total')
-plt.ylabel('price [USD]')
+plt.ylabel('USD')
 plt.xlabel('time [min]')
 plt.legend(ncol=5,loc='center', bbox_to_anchor=(0.5,1.05))
 plt.margins(0)
@@ -227,6 +235,14 @@ plt.annotate('5', xy=(560, 0.97),  xycoords='data',
             horizontalalignment='right', verticalalignment='top')
 plt.annotate('6', xy=(590, 2.05),  xycoords='data',
             xytext=(570, 2.3), textcoords='data',
+            arrowprops=dict(facecolor='black', width=1, headlength=6, headwidth=7),
+            horizontalalignment='right', verticalalignment='top')
+plt.annotate('a', xy=(147, 1.40),  xycoords='data',
+            xytext=(120, 1.60), textcoords='data',
+            arrowprops=dict(facecolor='black', width=1, headlength=6, headwidth=7),
+            horizontalalignment='right', verticalalignment='top')
+plt.annotate('b', xy=(359, 1.40),  xycoords='data',
+            xytext=(335, 1.64), textcoords='data',
             arrowprops=dict(facecolor='black', width=1, headlength=6, headwidth=7),
             horizontalalignment='right', verticalalignment='top')
 plt.ylim(top=max(arbitrarywastage['high'][-1],arbitrarywastage['low'][-1],arbitrarywastage['idle'][-1])+1)

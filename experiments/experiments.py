@@ -6,10 +6,10 @@ import numpy as np
 import scipy.stats
 from pprint import pprint
 
-APP = ['BT-1', 'LU-1', 'SP-1', 'FT-1', 'CG-1', 'IS-1',
-        'BT-2', 'LU-2', 'SP-2', 'FT-2', 'CG-2', 'IS-2',
-        'BT-3', 'LU-3', 'SP-3', 'FT-3', 'CG-3', 'IS-3',
-        'EP-1', 'EP-2', 'EP-3']
+APP = ['BT-1']#, 'LU-1', 'SP-1', 'FT-1', 'CG-1', 'IS-1',
+        #'BT-2', 'LU-2', 'SP-2', 'FT-2', 'CG-2', 'IS-2',
+        #'BT-3', 'LU-3', 'SP-3', 'FT-3', 'CG-3', 'IS-3',
+        #'EP-1', 'EP-2', 'EP-3']
 #APP = ['FT-1']
 pricereason_exp = True
 price_exp = True
@@ -25,7 +25,7 @@ price_exp = True
 CONSERVATIVE = True
 home = os.path.dirname(os.path.realpath(__file__))
 EXPERIMENTS_DIR = home + "/results"
-EXPERIMENTS_FILE = EXPERIMENTS_DIR + "/" + "exp.json"
+EXPERIMENTS_FILE = EXPERIMENTS_DIR + "/" + "exp1.article.json"
 if not os.path.exists(EXPERIMENTS_DIR):
     os.makedirs(EXPERIMENTS_DIR)
 
@@ -34,8 +34,8 @@ for i in APP:
     DIR[i] = {}
     DIR[i]['experiment4'] = 'limited-threads/4/'+i+'/'
     DIR[i]['experiment16'] = 'limited-threads/16/'+i+'/'
-    DIR[i]['experiments'] = 'unlimited-threads/experiments/'+i+'/'
-    DIR[i]['selections'] = 'unlimited-threads/selections/'+i+'/'
+    #DIR[i]['experiments'] = 'unlimited-threads/experiments/'+i+'/'
+    #DIR[i]['selections'] = 'unlimited-threads/selections/'+i+'/'
 
 intel = ['c5n9xlarge', 'r512xlarge', 'c512xlarge', 'r5n12xlarge', 'i32xlarge',
         'r5xlarge', 'r52xlarge', 't32xlarge', 'r5n8xlarge', 'r58xlarge',
@@ -90,6 +90,11 @@ pricereason_heuristics['vcpu-pricereason'] = {}
 pricereason_heuristics['cpu-pricereason'] = {}
 pricereason_heuristics['both-pricereason'] = {}
 pricereason_heuristics['topdown-pricereason'] = {}
+article_heuristics = {}
+article_heuristics['vcpu'] = {}
+article_heuristics['vcpu-pricereason'] = {}
+article_heuristics['cpu'] = {}
+article_heuristics['cpu-pricereason'] = {}
 heuristics = {}
 if price_exp:
     heuristics.update(price_heuristics)
@@ -106,7 +111,7 @@ for i in INSTANCES:
 
 if __name__ == '__main__':
 
-    def get_searchspace(instances_list, minvcpu, maxvcpu):
+    def get_searchspace2(instances_list, minvcpu, maxvcpu):
         vcpus_available = []
         for vm in INSTANCES:
             if vm in instances_list:
@@ -123,7 +128,19 @@ if __name__ == '__main__':
         if not vcpus_list:
             vcpus_list.append(max(vcpus_available))
         return vcpus_list
-        
+    
+    def get_searchspace(instances_list, minvcpu, maxvcpu):
+        vcpus_available = []
+        for vm in INSTANCES:
+            if vm in instances_list:
+                vcpus_available.append(INSTANCES[vm]['vcpu'])
+        vcpus_list = [] 
+        for vcpus in sorted(vcpus_available):
+            if not vcpus in vcpus_list and vcpus >= minvcpu: vcpus_list.append(vcpus)
+        if not vcpus_list:
+            vcpus_list.append(max(vcpus_available))
+        return vcpus_list
+
     def get_cheaper(instances, compare_type='price'):
         lowest = float('inf')
         instance = ''
@@ -147,7 +164,7 @@ if __name__ == '__main__':
         filtered_candidates = experiment_filter(app)
         # Get search space, in this case min and max are the min of vcpus
         searchspace = get_searchspace(filtered_candidates, minvcpus, maxvcpus)
-        for s in sorted(searchspace, reverse=True):
+        for s in sorted(searchspace):
             candidates = []
             for i in filtered_candidates:
                 if INSTANCES[i]['vcpu'] == s:
@@ -184,13 +201,17 @@ if __name__ == '__main__':
 
         heuristic['blocal-costovcost'] = this[selected]['cost'] / BETTER[app][threads]['cost']
         heuristic['blocal-costovperf'] = this[selected]['pi'] / BETTER[app][threads]['costpi']
+        heuristic['blocal-cost'] =  BETTER[app][threads]['costi']
         heuristic['blocal-piovcost'] = this[selected]['cost'] / BETTER[app][threads]['picost']
         heuristic['blocal-piovperf'] = this[selected]['pi'] / BETTER[app][threads]['pi']
+        heuristic['blocal-pi'] =  BETTER[app][threads]['pii']
         heuristic['bglobal-costovcost'] = this[selected]['cost'] / BETTER[app]['global']['cost']
         heuristic['bglobal-costovperf'] = this[selected]['pi'] / BETTER[app]['global']['costpi']
+        heuristic['bglobal-cost'] =  BETTER[app]['global']['costi']
         heuristic['bglobal-piovcost'] = this[selected]['cost'] / BETTER[app]['global']['picost']
         heuristic['bglobal-piovperf'] = this[selected]['pi'] / BETTER[app]['global']['pi']
-    
+        heuristic['bglobal-pi'] =  BETTER[app]['global']['pii']
+        
     def paramount_iteration_lower_than():
         for app in APP:
             for dir in DIR[app]:
@@ -284,7 +305,6 @@ if __name__ == '__main__':
         for t in EXP[app]:
             for i in EXP[app][t]:
                 print(EXP[app][t][i]['pi'])
-    pprint(EXP)
     EXP_ = {}
     for app in EXP:
         app_ = app.split('-')[0]
@@ -330,7 +350,9 @@ if __name__ == '__main__':
                     selected, found = heuristic_algorithm(vm, minvcpus, minvcpus, app, compare_type='price')
                     # Calculate the performance and cost overheads
                     calculate_overheads('vcpu', threads, app, vm, selected)
-
+            for t in heuristics['vcpu'][app]:
+                for v in heuristics['vcpu'][app][t]:
+                    print(t, v, heuristics['vcpu'][app][t][v]['selected']['instance']['name'])
             # CPU-heuristic
             print("CPU-heuristic")
             heuristics['cpu'][app] = {}
@@ -339,6 +361,9 @@ if __name__ == '__main__':
                     minvcpus = 2*EXP[app][threads][vm]['utilization']*INSTANCES[vm]['vcpu']
                     selected, found = heuristic_algorithm(vm, minvcpus, minvcpus, app, compare_type='price')
                     calculate_overheads('cpu', threads, app, vm, selected)
+            for t in heuristics['cpu'][app]:
+                for v in heuristics['cpu'][app][t]:
+                    print(t, v, heuristics['cpu'][app][t][v]['selected']['instance']['name'])
 
             # both-heuristic
             print("both-heuristic")
@@ -378,6 +403,10 @@ if __name__ == '__main__':
                     selected, found = heuristic_algorithm(vm, minvcpus, minvcpus, app, compare_type='pricereason')
                     calculate_overheads('vcpu-pricereason', threads, app, vm, selected)
             
+            for t in heuristics['vcpu-pricereason'][app]:
+                for v in heuristics['vcpu-pricereason'][app][t]:
+                    print(t, v, heuristics['vcpu-pricereason'][app][t][v]['selected']['instance']['name'])
+
             # CPU-pricereason-heuristic
             print("CPU-pricereason-heuristic")
             heuristics['cpu-pricereason'][app] = {}
@@ -386,6 +415,9 @@ if __name__ == '__main__':
                     minvcpus = 2*EXP[app][threads][vm]['utilization']*INSTANCES[vm]['vcpu']
                     selected, found = heuristic_algorithm(vm, minvcpus, minvcpus, app, compare_type='pricereason')
                     calculate_overheads('cpu-pricereason', threads, app, vm, selected)
+            for t in heuristics['cpu-pricereason'][app]:
+                for v in heuristics['cpu-pricereason'][app][t]:
+                    print(t, v, heuristics['cpu-pricereason'][app][t][v]['selected']['instance']['name'])
 
             # both-pricereason-heuristic
             print("both-pricereason-heuristic")
@@ -413,4 +445,4 @@ if __name__ == '__main__':
 
                     calculate_overheads('topdown-pricereason', threads, app, vm, selected)
 
-    (open(EXPERIMENTS_FILE, 'w+')).write(json.dumps(heuristics))
+    #(open(EXPERIMENTS_FILE, 'w+')).write(json.dumps(heuristics))

@@ -1,3 +1,7 @@
+"""
+Authors: William Felipe C. Tavares, Marcio Roberto Miranda Assis, Edson Borin
+Copyright Unicamp
+"""
 import pytz
 from datetime import datetime, timezone
 import awsapi as aws

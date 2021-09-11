@@ -174,9 +174,17 @@ for h,c in zip(data, colors):
                 scipy.stats.mstats.gmean(data[h]['perf']),
                 c=c, alpha=0.5, marker='x')
 
-handles = [f("o", colors[i]) for i in range(4)]
+#plt.legend(handles=handles, labels=labels, loc='lower right', facecolor='white', frameon=True)
+#legend1 = plt.legend(["o", "x"], ["geometric means", "min and max"])
+
+handles = [f(i, '#3d3d3d') for i in ['o', 'X']]
+labels = ["geometric means", "min and max"]
+leg = plt.legend(handles=handles, labels=labels, loc='lower left', facecolor='white', frameon=True)
+ax.add_artist(leg)
+handles = [f("s", colors[i]) for i in range(4)]
 labels = [heuristic_name[h] for h in price_heuristics]
 plt.legend(handles=handles, labels=labels, loc='lower right', facecolor='white', frameon=True)
+
 
 axins = ax.inset_axes([.6, 0.7, 0.7, 0.5])
 for h,c in zip(data, colors):
@@ -355,9 +363,17 @@ for h,c in zip(data, colors[4:]):
                 scipy.stats.mstats.gmean(data[h]['perf']),
                 c=c, alpha=0.5, marker='x')
 
-handles = [f("o", colors[i+4]) for i in range(4)]
+
+
+handles = [f(i, '#3d3d3d') for i in ['o', 'X']]
+labels = ["geometric means", "min and max"]
+leg = plt.legend(handles=handles, labels=labels, loc=('center left'), facecolor='white', frameon=True)
+ax.add_artist(leg)
+handles = [f("s", colors[i+4]) for i in range(4)]
 labels = [heuristic_name[h] for h in pricereason_heuristics]
 plt.legend(handles=handles, labels=labels, loc='upper left', facecolor='white', frameon=True)
+
+
 
 axins = ax.inset_axes([.5, 0.6, 0.7, 0.5])
 for h,c in zip(data, colors[4:]):

@@ -198,7 +198,7 @@ plt.plot(arbitrarywastage['low'], color='#ff4aae', linestyle='solid', label='low
 plt.plot(arbitrarywastage['idle'], color='#246dff', linestyle='solid', label='idle')
 #plt.plot(wastagereset['idle'], color='red', linestyle='dashed', label='idle-reset')
 plt.plot(arbitrarywastage['total'], color='#5bf069', linestyle='solid', label='total')
-plt.ylabel('price [USD]')
+plt.ylabel('USD')
 plt.xlabel('time [min]')
 plt.legend(ncol=5,loc='center', bbox_to_anchor=(0.5,1.05))
 plt.margins(0)

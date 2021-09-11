@@ -1,3 +1,7 @@
+"""
+Authors: William Felipe C. Tavares, Marcio Roberto Miranda Assis, Edson Borin
+Copyright Unicamp
+"""
 import os
 import zapi as z
 from sendemail import usernotfound_email

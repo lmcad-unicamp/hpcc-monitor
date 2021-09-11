@@ -1,3 +1,7 @@
+"""
+Authors: William Felipe C. Tavares, Marcio Roberto Miranda Assis, Edson Borin
+Copyright Unicamp
+"""
 import logging
 import os
 import re

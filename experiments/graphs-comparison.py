@@ -149,6 +149,7 @@ for heuristic in heuristics:
                         data[heuristic]['cost'].append(heuristics[heuristic][app][threads][vm]['ovcost'])
 
 for h,c in zip(data, colors):
+        print(h, scipy.stats.mstats.gmean(data[h]['cost']), scipy.stats.mstats.gmean(data[h]['perf']))
         plt.errorbar(scipy.stats.mstats.gmean(data[h]['cost']), 
                 scipy.stats.mstats.gmean(data[h]['perf']),
                 yerr=mean_confidence_interval(data[h]['perf']),
@@ -164,6 +165,14 @@ plt.hlines(1, 0.99, 3.6, color='#000')
 plt.vlines(1, 0.49, 1.1, color='#000')
 plt.xlim(0.99, 3.6)
 plt.ylim(0.49, 1.1)
+plt.annotate('1', xy=(2.9, 0.88),  xycoords='data',
+            xytext=(2.8, .85), textcoords='data',
+            arrowprops=dict(facecolor='black', width=1, headlength=6, headwidth=7),
+            horizontalalignment='right', verticalalignment='top')
+plt.annotate('2', xy=(2.93, 0.97),  xycoords='data',
+            xytext=(2.8, 1.05), textcoords='data',
+            arrowprops=dict(facecolor='black', width=1, headlength=6, headwidth=7),
+            horizontalalignment='right', verticalalignment='top')
 plt.savefig(GRAPHS_DIR+'/'+'exp1-heuristics-prxp-mean-onlychanges.svg', dpi=100,
             bbox_inches='tight', format='svg', pad_inches = 0)
 plt.show()

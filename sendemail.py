@@ -1,3 +1,7 @@
+"""
+Authors: William Felipe C. Tavares, Marcio Roberto Miranda Assis, Edson Borin
+Copyright Unicamp
+"""
 import smtplib
 import os
 from email.mime.text import MIMEText
